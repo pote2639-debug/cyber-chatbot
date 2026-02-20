@@ -369,8 +369,8 @@ function askSuggestion(btn) {
     const text = btn.textContent.replace(/^[^\s]+\s/, '');
     messageInput.value = text;
     messageInput.focus();
-    if (window.innerWidth <= 768) {
-        sidebar.classList.remove('mobile-open');
+    if (window.innerWidth <= 1024) {
+        closeSidebar();
     }
     sendMessage();
 }
