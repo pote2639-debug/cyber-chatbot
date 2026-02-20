@@ -180,8 +180,27 @@ async function deleteSession(sessionId) {
   return result.rowCount > 0;
 }
 
+// Export all logs (no limit, full history)
+async function getAllLogsForExport() {
+  const query = `
+    SELECT 
+      s.id as session_id, s.user_name, s.created_at as session_created_at,
+      json_agg(
+        json_build_object('role', m.role, 'content', m.content, 'created_at', m.created_at)
+        ORDER BY m.created_at ASC
+      ) FILTER (WHERE m.id IS NOT NULL) as messages
+    FROM sessions s
+    LEFT JOIN messages m ON m.session_id = s.id
+    GROUP BY s.id
+    ORDER BY s.created_at ASC
+  `;
+  const result = await pool.query(query);
+  return result.rows;
+}
+
 module.exports = {
   pool, initDB, createSession, saveMessage, getHistory,
   getAllSessions, searchLogs, deleteSession,
-  getSessionsByUserName, getActiveSessionCount
+  getSessionsByUserName, getActiveSessionCount,
+  getAllLogsForExport
 };

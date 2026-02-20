@@ -4,7 +4,12 @@ const crypto = require('crypto');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 
-const { initDB, createSession, saveMessage, getHistory, getAllSessions, searchLogs, deleteSession, getSessionsByUserName, getActiveSessionCount } = require('./db');
+const {
+    initDB, createSession, saveMessage, getHistory,
+    getAllSessions, searchLogs, deleteSession,
+    getSessionsByUserName, getActiveSessionCount,
+    getAllLogsForExport
+} = require('./db');
 
 const app = express();
 app.use(cors());
@@ -234,6 +239,19 @@ app.get('/api/search', requireAdmin, async (req, res) => {
 // Serve admin page (the page itself loads, but data requires auth)
 app.get('/admin', (req, res) => {
     res.sendFile(path.join(__dirname, '..', 'frontend', 'admin.html'));
+});
+
+// Export all logs as JSON (admin — protected)
+app.get('/api/export', requireAdmin, async (req, res) => {
+    try {
+        const logs = await getAllLogsForExport();
+        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Content-Disposition', 'attachment; filename="cyberguard_logs_export.json"');
+        res.json(logs);
+    } catch (err) {
+        console.error('Error exporting logs:', err);
+        res.status(500).json({ error: 'Failed to export logs' });
+    }
 });
 
 // ─── n8n Webhook Call ─────────────────────────────────────

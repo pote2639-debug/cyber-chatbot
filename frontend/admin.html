@@ -306,6 +306,26 @@
         }
 
         .back-link,
+        .export-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--text-primary);
+            background: rgba(0, 240, 255, 0.1);
+            border: 1px solid var(--border-accent);
+            text-decoration: none;
+            font-size: 0.85rem;
+            padding: 8px 14px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .export-btn:hover {
+            background: rgba(0, 240, 255, 0.2);
+            box-shadow: 0 0 10px rgba(0, 240, 255, 0.2);
+        }
+
         .logout-btn {
             display: flex;
             align-items: center;
@@ -1006,6 +1026,14 @@
                 <h1>CyberGuard <span>Admin Dashboard</span></h1>
             </div>
             <div class="header-right">
+                <button class="export-btn" id="exportBtn" onclick="exportLogs()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="7 10 12 15 17 10"></polyline>
+                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                    </svg>
+                    <span>Export Logs (JSON)</span>
+                </button>
                 <a href="/" class="back-link">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
                         <polyline points="15 18 9 12 15 6"></polyline>
@@ -1225,6 +1253,54 @@
             } finally {
                 loginBtn.classList.remove('loading');
                 loginBtn.disabled = false;
+            }
+        }
+
+        // ─── Export Logs ─────────────────────────────
+
+        async function exportLogs() {
+            const btn = document.getElementById('exportBtn');
+            const originalText = btn.innerHTML;
+
+            try {
+                btn.innerHTML = `<div class="spinner-sm"></div><span>Exporting...</span>`;
+                btn.disabled = true;
+
+                const res = await fetch(`${API_BASE}/api/export`, {
+                    headers: { 'Authorization': `Bearer ${adminToken}` }
+                });
+
+                if (!res.ok) throw new Error('Failed to export logs');
+
+                const data = await res.json();
+
+                // Create a Blob from the JSON data
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                const url = window.URL.createObjectURL(blob);
+
+                // Create a temporary link to trigger download
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+
+                // Add timestamp to filename
+                const date = new Date().toISOString().split('T')[0];
+                a.download = `cyberguard_logs_export_${date}.json`;
+
+                document.body.appendChild(a);
+                a.click();
+
+                // Cleanup
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+
+                // showToast('Logs exported successfully', 'success'); // Assuming showToast exists
+            } catch (err) {
+                console.error('Export error:', err);
+                // showToast('Failed to export logs', 'error'); // Assuming showToast exists
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
             }
         }
 
