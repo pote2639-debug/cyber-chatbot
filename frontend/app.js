@@ -8,7 +8,6 @@ const API_BASE = window.location.origin;
 let sessionId = null;
 let userName = '';
 let isProcessing = false;
-let selectedModel = 'openai/gpt-4o';
 
 // ─── DOM Elements ───────────────────────────────
 const welcomeScreen = document.getElementById('welcome-screen');
@@ -21,7 +20,6 @@ const sendBtn = document.getElementById('send-btn');
 const sidebar = document.getElementById('sidebar');
 const userAvatar = document.getElementById('user-avatar');
 const userDisplayName = document.getElementById('user-display-name');
-const modelSelect = document.getElementById('model-select');
 const toastContainer = document.getElementById('toast-container');
 
 // ─── Toast Notification System ──────────────────
@@ -48,42 +46,6 @@ function showToast(message, type = 'info', duration = 4000) {
     }, duration);
 }
 
-// ─── Model Switcher ─────────────────────────────
-
-async function loadModels() {
-    try {
-        const res = await fetch(`${API_BASE}/api/models`);
-        if (!res.ok) throw new Error('Failed to load models');
-        const models = await res.json();
-
-        modelSelect.innerHTML = '';
-        models.forEach(m => {
-            const opt = document.createElement('option');
-            opt.value = m.id;
-            opt.textContent = `${m.name} — ${m.description}`;
-            opt.title = `${m.provider}: ${m.description}`;
-            modelSelect.appendChild(opt);
-        });
-
-        // Restore saved model preference
-        const savedModel = localStorage.getItem('cyberguard_model');
-        if (savedModel && models.find(m => m.id === savedModel)) {
-            selectedModel = savedModel;
-            modelSelect.value = savedModel;
-        } else {
-            selectedModel = models[0]?.id || 'openai/gpt-4o';
-        }
-    } catch (err) {
-        console.warn('Could not load models:', err);
-    }
-}
-
-function changeModel(modelId) {
-    selectedModel = modelId;
-    localStorage.setItem('cyberguard_model', modelId);
-    const modelName = modelSelect.options[modelSelect.selectedIndex]?.textContent.split(' — ')[0] || modelId;
-    showToast(`เปลี่ยนเป็นโมเดล ${modelName}`, 'info', 2500);
-}
 
 // ─── Session Persistence (localStorage) ─────────
 
@@ -94,8 +56,6 @@ function saveSession() {
 
 function clearSession() {
     localStorage.removeItem('cyberguard_session');
-    localStorage.removeItem('cyberguard_model');
-    // Keep cyberguard_username so user doesn't have to re-enter it
 }
 
 function fullLogout() {
@@ -270,7 +230,7 @@ async function sendMessage() {
         const res = await fetch(`${API_BASE}/api/chat`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ sessionId, message: text, model: selectedModel }),
+            body: JSON.stringify({ sessionId, message: text }),
         });
 
         if (!res.ok) throw new Error('Chat request failed');
@@ -379,9 +339,6 @@ function newChat() {
 // ─── Init ───────────────────────────────────────
 
 (async function init() {
-    // Load available AI models
-    await loadModels();
-
     // Try to restore previous session
     const restored = await tryRestoreSession();
     if (!restored) {

@@ -13,18 +13,46 @@ app.use(express.json());
 // Serve frontend static files
 app.use(express.static(path.join(__dirname, '..', 'frontend')));
 
-// ─── Available AI Models ──────────────────────────────────
+// ─── Automatic Model Routing ──────────────────────────────
+// Routes questions to the right model based on complexity
+// Simple questions → cheap model, Complex questions → capable model
 
-const AVAILABLE_MODELS = [
-    { id: 'openai/gpt-4o', name: 'GPT-4o', provider: 'OpenAI', description: 'Most capable OpenAI model' },
-    { id: 'openai/gpt-4o-mini', name: 'GPT-4o Mini', provider: 'OpenAI', description: 'Fast & affordable' },
-    { id: 'anthropic/claude-3.5-sonnet', name: 'Claude 3.5 Sonnet', provider: 'Anthropic', description: 'Excellent reasoning' },
-    { id: 'anthropic/claude-3-haiku', name: 'Claude 3 Haiku', provider: 'Anthropic', description: 'Fast & lightweight' },
-    { id: 'google/gemini-pro-1.5', name: 'Gemini Pro 1.5', provider: 'Google', description: 'Large context window' },
-    { id: 'google/gemini-flash-1.5', name: 'Gemini Flash 1.5', provider: 'Google', description: 'Ultra-fast responses' },
-    { id: 'meta-llama/llama-3.1-70b-instruct', name: 'Llama 3.1 70B', provider: 'Meta', description: 'Open-source powerhouse' },
-    { id: 'mistralai/mistral-large', name: 'Mistral Large', provider: 'Mistral', description: 'Strong multilingual' },
+const MODEL_TIERS = {
+    fast: process.env.MODEL_FAST || 'openai/gpt-4o-mini',      // Simple Q&A, greetings, short answers
+    smart: process.env.MODEL_SMART || 'openai/gpt-4o',         // Complex, technical, multi-part questions
+};
+
+// Cybersecurity keywords that indicate a more complex question
+const COMPLEX_KEYWORDS = [
+    'exploit', 'vulnerability', 'cve', 'zero-day', 'ransomware', 'malware',
+    'encryption', 'certificate', 'firewall', 'penetration', 'forensic',
+    'incident response', 'supply chain', 'authentication', 'authorization',
+    'oauth', 'jwt', 'sql injection', 'xss', 'cross-site', 'buffer overflow',
+    'reverse engineering', 'privilege escalation', 'lateral movement',
+    'advanced persistent', 'apt', 'siem', 'ids', 'ips', 'soc',
+    'เจาะระบบ', 'ช่องโหว่', 'มัลแวร์', 'แรนซัมแวร์', 'เข้ารหัส', 'ถอดรหัส',
+    'ไฟร์วอลล์', 'การโจมตี', 'เครือข่าย', 'โปรโตคอล',
+    'อธิบาย', 'เปรียบเทียบ', 'ข้อดี', 'ข้อเสีย', 'ความแตกต่าง',
+    'compare', 'difference', 'explain in detail', 'how does', 'step by step',
 ];
+
+function selectModel(message) {
+    const msg = message.toLowerCase();
+    const wordCount = message.split(/\s+/).length;
+
+    // Check for complex keyword matches
+    var keywordHits = 0;
+    for (var i = 0; i < COMPLEX_KEYWORDS.length; i++) {
+        if (msg.includes(COMPLEX_KEYWORDS[i])) keywordHits++;
+    }
+
+    // Use smart model if: long message, multiple keywords, or asking for detailed explanation
+    if (wordCount > 30 || keywordHits >= 2) {
+        return MODEL_TIERS.smart;
+    }
+
+    return MODEL_TIERS.fast;
+}
 
 // ─── API Routes ───────────────────────────────────────────
 
@@ -47,15 +75,13 @@ app.post('/api/session', async (req, res) => {
 // Chat endpoint — receives message, logs it, calls n8n, logs response, returns it
 app.post('/api/chat', async (req, res) => {
     try {
-        const { sessionId, message, model } = req.body;
+        const { sessionId, message } = req.body;
         if (!sessionId || !message) {
             return res.status(400).json({ error: 'sessionId and message are required' });
         }
 
-        // Validate model if provided
-        const selectedModel = model && AVAILABLE_MODELS.find(m => m.id === model)
-            ? model
-            : (process.env.DEFAULT_MODEL || 'openai/gpt-4o');
+        // Auto-select model based on question complexity
+        const selectedModel = selectModel(message);
 
         // 1. Save user message to DB
         await saveMessage(sessionId, 'user', message);
@@ -153,9 +179,12 @@ app.delete('/api/sessions/:id', requireAdmin, async (req, res) => {
     }
 });
 
-// Get available AI models
+// Get available AI models (info endpoint)
 app.get('/api/models', (req, res) => {
-    res.json(AVAILABLE_MODELS);
+    res.json([
+        { id: MODEL_TIERS.fast, name: 'Auto (Fast)', description: 'Used for simple questions' },
+        { id: MODEL_TIERS.smart, name: 'Auto (Smart)', description: 'Used for complex questions' },
+    ]);
 });
 
 // Search sessions and messages (admin search — protected)
