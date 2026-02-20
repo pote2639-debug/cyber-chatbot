@@ -620,6 +620,28 @@
             border-bottom: 1px solid var(--border-subtle);
         }
 
+        .sessions-table th.sortable {
+            cursor: pointer;
+            user-select: none;
+            transition: color 0.2s;
+        }
+
+        .sessions-table th.sortable:hover {
+            color: var(--neon-cyan);
+        }
+
+        .sort-icon {
+            display: inline-block;
+            margin-left: 4px;
+            font-size: 0.9rem;
+            opacity: 0.8;
+            vertical-align: middle;
+        }
+
+        .sort-icon.invisible {
+            opacity: 0;
+        }
+
         .sessions-table td {
             padding: 14px 20px;
             font-size: 0.88rem;
@@ -1450,11 +1472,71 @@
             }
         }
 
-        // ═══ Table Builder ═══
+        // ═══ Table Builder & Sorting ═══
+
+        let currentSortCol = 'date';
+        let currentSortDir = 'desc';
+
+        function handleSort(col) {
+            if (currentSortCol === col) {
+                currentSortDir = currentSortDir === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSortCol = col;
+                currentSortDir = col === 'date' || col === 'messages' ? 'desc' : 'asc';
+            }
+
+            // Determine which array to sort based on current view
+            let dataArray = isSearchMode ? window.currentSearchResults : allSessions;
+
+            // Sort array in place
+            sortData(dataArray);
+
+            // Re-render
+            if (isSearchMode) {
+                renderSearchResults(dataArray, currentSearchContent);
+            } else {
+                renderSessions(dataArray);
+            }
+        }
+
+        function sortData(arr) {
+            arr.sort((a, b) => {
+                let valA, valB;
+
+                if (currentSortCol === 'user') {
+                    valA = a.user_name.toLowerCase();
+                    valB = b.user_name.toLowerCase();
+                } else if (currentSortCol === 'id') {
+                    valA = a.id;
+                    valB = b.id;
+                } else if (currentSortCol === 'messages') {
+                    valA = parseInt(a.message_count) || 0;
+                    valB = parseInt(b.message_count) || 0;
+                } else { // default date
+                    valA = new Date(a.created_at).getTime();
+                    valB = new Date(b.created_at).getTime();
+                }
+
+                if (valA < valB) return currentSortDir === 'asc' ? -1 : 1;
+                if (valA > valB) return currentSortDir === 'asc' ? 1 : -1;
+                return 0;
+            });
+        }
+
+        function getSortIndicator(col) {
+            if (currentSortCol !== col) return '<span class="sort-icon invisible">↕</span>';
+            return currentSortDir === 'asc' ? '<span class="sort-icon">↑</span>' : '<span class="sort-icon">↓</span>';
+        }
 
         function buildTableHTML(sessions, hasInlineMessages, contentQuery) {
+            if (isSearchMode) { window.currentSearchResults = sessions; }
+
             var html = '<table class="sessions-table"><thead><tr>' +
-                '<th>ผู้ใช้</th><th>Session ID</th><th>เวลาเริ่ม</th><th>ข้อความ</th><th style="width:50px"></th>' +
+                '<th class="sortable" onclick="handleSort(\'user\')">ผู้ใช้ ' + getSortIndicator('user') + '</th>' +
+                '<th class="sortable" onclick="handleSort(\'id\')">Session ID ' + getSortIndicator('id') + '</th>' +
+                '<th class="sortable" onclick="handleSort(\'date\')">เวลาเริ่ม ' + getSortIndicator('date') + '</th>' +
+                '<th class="sortable" onclick="handleSort(\'messages\')">ข้อความ ' + getSortIndicator('messages') + '</th>' +
+                '<th style="width:50px"></th>' +
                 '</tr></thead><tbody>';
 
             sessions.forEach(function (s) {
