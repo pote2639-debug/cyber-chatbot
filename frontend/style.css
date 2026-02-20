@@ -67,6 +67,8 @@ body {
   width: 100%;
   height: 100vh;
   height: 100dvh;
+  position: fixed;
+  inset: 0;
   overflow: hidden;
 }
 
@@ -333,6 +335,8 @@ body {
    ═══════════════════════════════════════════════════ */
 #chat-screen {
   flex-direction: row;
+  position: fixed;
+  inset: 0;
 }
 
 /* ─── Sidebar ─── */
@@ -945,27 +949,8 @@ body {
    RESPONSIVE
    ═══════════════════════════════════════════════════ */
 
-/* ─── Tablet Landscape (≤1024px) ─── */
+/* ─── Tablet & Mobile (≤1024px) — iPad portrait, tablets, phones ─── */
 @media (max-width: 1024px) {
-  :root {
-    --sidebar-width: 240px;
-  }
-
-  .model-label {
-    display: none;
-  }
-
-  #model-select {
-    min-width: 120px;
-  }
-
-  .chat-messages {
-    padding: 20px;
-  }
-}
-
-/* ─── Tablet Portrait / Mobile (≤768px) ─── */
-@media (max-width: 768px) {
   :root {
     --sidebar-width: 280px;
     --header-height: 54px;
@@ -1020,7 +1005,7 @@ body {
     height: 36px;
   }
 
-  /* Chat screen */
+  /* Chat screen — column layout (no side-by-side) */
   #chat-screen {
     flex-direction: column;
   }
@@ -1035,6 +1020,10 @@ body {
   }
 
   .model-selector-wrapper {
+    display: none;
+  }
+
+  .model-label {
     display: none;
   }
 
@@ -1207,7 +1196,7 @@ body {
     padding-bottom: calc(20px + env(safe-area-inset-bottom));
   }
 
-  @media (max-width: 768px) {
+  @media (max-width: 1024px) {
     .chat-input-area {
       padding-bottom: calc(14px + env(safe-area-inset-bottom));
     }
