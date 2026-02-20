@@ -48,7 +48,8 @@ function showToast(message, type = 'info', duration = 4000) {
 
 // ─── Sidebar Toggle ─────────────────────────────
 
-function toggleSidebar() {
+function toggleSidebar(e) {
+    if (e) e.stopPropagation();
     var isMobile = window.innerWidth <= 1024;
     if (isMobile) {
         sidebar.classList.toggle('mobile-open');
@@ -60,7 +61,7 @@ function toggleSidebar() {
 // Close sidebar when tapping outside on mobile
 document.addEventListener('click', function (e) {
     if (window.innerWidth <= 1024 && sidebar.classList.contains('mobile-open')) {
-        if (!sidebar.contains(e.target) && !e.target.closest('.sidebar-toggle')) {
+        if (!sidebar.contains(e.target)) {
             sidebar.classList.remove('mobile-open');
         }
     }
