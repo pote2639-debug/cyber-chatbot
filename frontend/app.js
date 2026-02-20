@@ -18,6 +18,8 @@ const chatMessages = document.getElementById('chat-messages');
 const messageInput = document.getElementById('message-input');
 const sendBtn = document.getElementById('send-btn');
 const sidebar = document.getElementById('sidebar');
+const sidebarToggleBtn = document.getElementById('sidebar-toggle-btn');
+const sidebarBackdrop = document.getElementById('sidebar-backdrop');
 const userAvatar = document.getElementById('user-avatar');
 const userDisplayName = document.getElementById('user-display-name');
 const toastContainer = document.getElementById('toast-container');
@@ -48,24 +50,48 @@ function showToast(message, type = 'info', duration = 4000) {
 
 // ─── Sidebar Toggle ─────────────────────────────
 
-function toggleSidebar(e) {
-    if (e) e.stopPropagation();
-    var isMobile = window.innerWidth <= 1024;
-    if (isMobile) {
-        sidebar.classList.toggle('mobile-open');
-    } else {
-        sidebar.classList.toggle('collapsed');
-    }
+if (sidebarToggleBtn) {
+    sidebarToggleBtn.addEventListener('click', function (e) {
+        e.preventDefault();
+        var isMobile = window.innerWidth <= 1024;
+
+        if (isMobile) {
+            const isOpen = sidebar.classList.contains('mobile-open');
+            if (isOpen) {
+                closeSidebar();
+            } else {
+                openSidebar();
+            }
+        } else {
+            sidebar.classList.toggle('collapsed');
+        }
+    });
 }
 
-// Close sidebar when tapping outside on mobile
-document.addEventListener('click', function (e) {
-    if (window.innerWidth <= 1024 && sidebar.classList.contains('mobile-open')) {
-        if (!sidebar.contains(e.target)) {
-            sidebar.classList.remove('mobile-open');
-        }
+if (sidebarBackdrop) {
+    sidebarBackdrop.addEventListener('click', function (e) {
+        e.preventDefault();
+        closeSidebar();
+    });
+}
+
+function openSidebar() {
+    sidebar.classList.add('mobile-open');
+    if (sidebarBackdrop) {
+        sidebarBackdrop.classList.add('active');
     }
-});
+    // Prevent background scrolling on iOS
+    document.body.style.overflow = 'hidden';
+}
+
+function closeSidebar() {
+    sidebar.classList.remove('mobile-open');
+    if (sidebarBackdrop) {
+        sidebarBackdrop.classList.remove('active');
+    }
+    // Restore background scrolling
+    document.body.style.overflow = '';
+}
 
 
 function saveSession() {

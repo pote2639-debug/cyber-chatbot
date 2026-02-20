@@ -362,6 +362,10 @@ body {
   pointer-events: none;
 }
 
+.sidebar-backdrop {
+  display: none;
+}
+
 .sidebar-header {
   display: flex;
   align-items: center;
@@ -974,6 +978,22 @@ body {
     transform: translateX(0);
     opacity: 1;
     box-shadow: 4px 0 24px rgba(0, 0, 0, 0.5);
+  }
+
+  .sidebar-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(2px);
+    z-index: 90;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+
+  .sidebar-backdrop.active {
+    display: block;
+    opacity: 1;
   }
 
   /* Welcome screen adjustments */
