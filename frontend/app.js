@@ -89,63 +89,94 @@ function changeModel(modelId) {
 
 function saveSession() {
     localStorage.setItem('cyberguard_session', JSON.stringify({ sessionId, userName }));
+    localStorage.setItem('cyberguard_username', userName);
 }
 
 function clearSession() {
     localStorage.removeItem('cyberguard_session');
     localStorage.removeItem('cyberguard_model');
+    // Keep cyberguard_username so user doesn't have to re-enter it
+}
+
+function fullLogout() {
+    clearSession();
+    localStorage.removeItem('cyberguard_username');
+    window.location.reload();
 }
 
 async function tryRestoreSession() {
     const saved = localStorage.getItem('cyberguard_session');
-    if (!saved) return false;
 
-    try {
-        const data = JSON.parse(saved);
-        if (!data.sessionId || !data.userName) return false;
+    // Case 1: Full session exists — try to restore it
+    if (saved) {
+        try {
+            const data = JSON.parse(saved);
+            if (data.sessionId && data.userName) {
+                const res = await fetch(`${API_BASE}/api/history/${data.sessionId}`);
+                if (res.ok) {
+                    const history = await res.json();
+                    sessionId = data.sessionId;
+                    userName = data.userName;
 
-        // Test if the session is still valid by fetching history
-        const res = await fetch(`${API_BASE}/api/history/${data.sessionId}`);
-        if (!res.ok) {
-            clearSession();
-            return false;
+                    enterChatScreen();
+
+                    // Show restored banner
+                    const banner = document.createElement('div');
+                    banner.className = 'restored-banner';
+                    banner.innerHTML = '🔄 ยินดีต้อนรับกลับมา ' + userName + '! กำลังโหลดประวัติการสนทนา...';
+                    chatMessages.appendChild(banner);
+
+                    if (history.length > 0) {
+                        history.forEach(function (msg) { addMessage(msg.role, msg.content, false); });
+                    } else {
+                        addWelcomeMessage();
+                    }
+
+                    setTimeout(function () { banner.remove(); }, 2000);
+                    showToast('เซสชันของ ' + userName + ' ถูกกู้คืนแล้ว', 'success', 3000);
+                    messageInput.focus();
+                    return true;
+                }
+            }
+        } catch (err) {
+            console.warn('Session restore failed:', err);
         }
-
-        const history = await res.json();
-        sessionId = data.sessionId;
-        userName = data.userName;
-
-        // Switch to chat screen
-        userAvatar.textContent = userName.charAt(0).toUpperCase();
-        userDisplayName.textContent = userName;
-        welcomeScreen.classList.remove('active');
-        chatScreen.classList.add('active');
-
-        // Show restored banner
-        const banner = document.createElement('div');
-        banner.className = 'restored-banner';
-        banner.innerHTML = `🔄 ยินดีต้อนรับกลับมา ${userName}! กำลังโหลดประวัติการสนทนา...`;
-        chatMessages.appendChild(banner);
-
-        // Restore messages from history
-        if (history.length > 0) {
-            history.forEach(msg => addMessage(msg.role, msg.content, false));
-        } else {
-            // If no messages yet, show welcome
-            addWelcomeMessage();
-        }
-
-        // Remove banner after messages load
-        setTimeout(() => banner.remove(), 2000);
-
-        showToast(`เซสชันของ ${userName} ถูกกู้คืนแล้ว`, 'success', 3000);
-        messageInput.focus();
-        return true;
-    } catch (err) {
-        console.warn('Session restore failed:', err);
         clearSession();
-        return false;
     }
+
+    // Case 2: No active session but we remember the username — auto-start new session
+    var savedName = localStorage.getItem('cyberguard_username');
+    if (savedName) {
+        try {
+            var res = await fetch(API_BASE + '/api/session', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userName: savedName }),
+            });
+            if (res.ok) {
+                var data = await res.json();
+                sessionId = data.id;
+                userName = savedName;
+                saveSession();
+                enterChatScreen();
+                addWelcomeMessage();
+                showToast('ยินดีต้อนรับกลับ ' + userName + '!', 'success', 3000);
+                messageInput.focus();
+                return true;
+            }
+        } catch (err) {
+            console.warn('Auto-session creation failed:', err);
+        }
+    }
+
+    return false;
+}
+
+function enterChatScreen() {
+    userAvatar.textContent = userName.charAt(0).toUpperCase();
+    userDisplayName.textContent = userName;
+    welcomeScreen.classList.remove('active');
+    chatScreen.classList.add('active');
 }
 
 // ─── Welcome / Session ─────────────────────────
@@ -182,13 +213,8 @@ async function startChat() {
         // Save session to localStorage
         saveSession();
 
-        // Update UI
-        userAvatar.textContent = name.charAt(0).toUpperCase();
-        userDisplayName.textContent = name;
-
         // Switch screens
-        welcomeScreen.classList.remove('active');
-        chatScreen.classList.add('active');
+        enterChatScreen();
 
         // Show Thai welcome message
         addWelcomeMessage();
@@ -345,6 +371,7 @@ function askSuggestion(btn) {
 }
 
 function newChat() {
+    // Keep the username, just start fresh session
     clearSession();
     window.location.reload();
 }
