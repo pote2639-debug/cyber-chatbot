@@ -1,0 +1,93 @@
+{
+  "name": "CyberGuard Chat Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "cyber-chat",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.OPENROUTER_API_KEY }}"
+            },
+            {
+              "name": "HTTP-Referer",
+              "value": "http://localhost:3000"
+            },
+            {
+              "name": "X-Title",
+              "value": "CyberGuard Chatbot"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"{{ $json.body.model || 'openai/gpt-4o' }}\",\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"คุณคือ CyberGuard ผู้ช่วย AI ด้านความปลอดภัยทางไซเบอร์ที่เป็นมิตรและเข้าถึงได้ง่าย ภารกิจของคุณคือช่วยให้คนทั่วไปชาวไทยเข้าใจเรื่องความปลอดภัยทางไซเบอร์ ตอบเป็นภาษาไทยเสมอ อธิบายด้วยภาษาง่ายๆ ไม่ใช้ศัพท์เทคนิค ตอบให้กระชับ 2-4 ย่อหน้า\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"{{ $json.body.message }}\"\n    }\n  ],\n  \"max_tokens\": 1024,\n  \"temperature\": 0.7\n}",
+        "options": {}
+      },
+      "id": "openrouter-request",
+      "name": "Call OpenRouter",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [470, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"response\": $json.choices[0].message.content } }}",
+        "options": {}
+      },
+      "id": "respond-webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [690, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Call OpenRouter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call OpenRouter": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0
+}

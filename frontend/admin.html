@@ -1,0 +1,1555 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="CyberGuard Admin Dashboard — View all chat sessions and analytics">
+    <title>CyberGuard — Admin Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0a0e17;
+            --bg-surface: #111827;
+            --bg-card: #1a2332;
+            --bg-hover: #1e293b;
+            --neon-cyan: #00f0ff;
+            --neon-blue: #3b82f6;
+            --neon-purple: #8b5cf6;
+            --neon-green: #10b981;
+            --neon-yellow: #f59e0b;
+            --neon-red: #ef4444;
+            --grad-primary: linear-gradient(135deg, #00f0ff, #3b82f6, #8b5cf6);
+            --grad-button: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --border-subtle: rgba(148, 163, 184, 0.1);
+            --border-accent: rgba(0, 240, 255, 0.2);
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+        }
+
+        *,
+        *::before,
+        *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            min-height: 100vh;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* ══════════════════════════════════════
+       LOGIN SCREEN
+       ══════════════════════════════════════ */
+
+        .login-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg-dark);
+            transition: opacity 0.4s, visibility 0.4s;
+        }
+
+        .login-overlay.hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        .login-card {
+            width: 100%;
+            max-width: 400px;
+            padding: 40px 36px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-lg);
+            box-shadow: 0 0 60px rgba(0, 240, 255, 0.06);
+            animation: fadeUp 0.5s ease-out;
+        }
+
+        @keyframes fadeUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .login-header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        .login-header svg {
+            width: 48px;
+            height: 48px;
+            color: var(--neon-cyan);
+            filter: drop-shadow(0 0 12px rgba(0, 240, 255, 0.4));
+            margin-bottom: 16px;
+        }
+
+        .login-header h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: var(--grad-primary);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 6px;
+        }
+
+        .login-header p {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .login-field {
+            margin-bottom: 16px;
+        }
+
+        .login-field label {
+            display: block;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+        }
+
+        .login-field input {
+            width: 100%;
+            padding: 12px 16px;
+            background: var(--bg-surface);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-sm);
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 0.92rem;
+            outline: none;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+
+        .login-field input:focus {
+            border-color: var(--neon-cyan);
+            box-shadow: 0 0 0 3px rgba(0, 240, 255, 0.08);
+        }
+
+        .login-field input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .login-error {
+            display: none;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            border-radius: var(--radius-sm);
+            color: var(--neon-red);
+            font-size: 0.82rem;
+            margin-bottom: 16px;
+            animation: shake 0.4s ease-in-out;
+        }
+
+        .login-error.visible {
+            display: flex;
+        }
+
+        @keyframes shake {
+
+            0%,
+            100% {
+                transform: translateX(0);
+            }
+
+            25% {
+                transform: translateX(-6px);
+            }
+
+            75% {
+                transform: translateX(6px);
+            }
+        }
+
+        .btn-login {
+            width: 100%;
+            padding: 13px;
+            background: var(--grad-button);
+            color: #fff;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-family: inherit;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-login:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(59, 130, 246, 0.3);
+        }
+
+        .btn-login:active {
+            transform: translateY(0);
+        }
+
+        .btn-login:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-login .spinner-sm {
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            display: none;
+        }
+
+        .btn-login.loading .spinner-sm {
+            display: block;
+        }
+
+        .btn-login.loading .btn-text {
+            display: none;
+        }
+
+        /* ══════════════════════════════════════
+       DASHBOARD (hidden until login)
+       ══════════════════════════════════════ */
+
+        .dashboard {
+            display: none;
+        }
+
+        .dashboard.visible {
+            display: block;
+        }
+
+        /* ── Header ── */
+        .admin-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 20px 32px;
+            border-bottom: 1px solid var(--border-subtle);
+            background: var(--bg-surface);
+            backdrop-filter: blur(12px);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .admin-logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .admin-logo svg {
+            width: 28px;
+            height: 28px;
+            color: var(--neon-cyan);
+            filter: drop-shadow(0 0 8px rgba(0, 240, 255, 0.4));
+        }
+
+        .admin-logo h1 {
+            font-size: 1.3rem;
+            font-weight: 700;
+            background: var(--grad-primary);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .admin-logo h1 span {
+            font-weight: 400;
+            font-size: 0.85rem;
+            -webkit-text-fill-color: var(--text-muted);
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .back-link,
+        .logout-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.85rem;
+            padding: 8px 14px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border-subtle);
+            transition: all 0.2s;
+            cursor: pointer;
+            background: none;
+            font-family: inherit;
+        }
+
+        .back-link:hover {
+            color: var(--neon-cyan);
+            border-color: var(--border-accent);
+            background: var(--bg-hover);
+        }
+
+        .logout-btn:hover {
+            color: var(--neon-red);
+            border-color: rgba(239, 68, 68, 0.3);
+            background: var(--bg-hover);
+        }
+
+        /* ── Stats ── */
+        .stats-bar {
+            display: flex;
+            gap: 16px;
+            padding: 24px 32px;
+            flex-wrap: wrap;
+        }
+
+        .stat-card {
+            flex: 1;
+            min-width: 140px;
+            padding: 20px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            text-align: center;
+            transition: border-color 0.3s;
+        }
+
+        .stat-card:hover {
+            border-color: var(--border-accent);
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            background: var(--grad-primary);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .stat-label {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            margin-top: 4px;
+        }
+
+        /* ── Search Panel ── */
+        .search-panel {
+            margin: 0 32px 24px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            transition: border-color 0.3s;
+        }
+
+        .search-panel:focus-within {
+            border-color: var(--border-accent);
+        }
+
+        .search-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border-subtle);
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .search-header:hover {
+            background: var(--bg-hover);
+        }
+
+        .search-header-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: var(--neon-cyan);
+        }
+
+        .search-header-left svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        .search-toggle-icon {
+            color: var(--text-muted);
+            transition: transform 0.3s;
+            width: 16px;
+            height: 16px;
+        }
+
+        .search-toggle-icon.open {
+            transform: rotate(180deg);
+        }
+
+        .search-body {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease, padding 0.3s ease;
+        }
+
+        .search-body.open {
+            max-height: 400px;
+            padding: 20px;
+        }
+
+        .search-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .search-field {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .search-field label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .search-field input {
+            padding: 10px 14px;
+            background: var(--bg-surface);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-sm);
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 0.88rem;
+            outline: none;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+
+        .search-field input:focus {
+            border-color: var(--neon-cyan);
+            box-shadow: 0 0 0 3px rgba(0, 240, 255, 0.08);
+        }
+
+        .search-field input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .search-field input[type="datetime-local"] {
+            color-scheme: dark;
+        }
+
+        .search-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 8px;
+            grid-column: 1 / -1;
+        }
+
+        .btn-search {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 24px;
+            background: var(--grad-button);
+            color: #fff;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-family: inherit;
+            font-size: 0.88rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .btn-search:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 16px rgba(59, 130, 246, 0.3);
+        }
+
+        .btn-search:active {
+            transform: translateY(0);
+        }
+
+        .btn-clear {
+            padding: 10px 20px;
+            background: transparent;
+            color: var(--text-secondary);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-sm);
+            font-family: inherit;
+            font-size: 0.88rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-clear:hover {
+            color: var(--text-primary);
+            border-color: var(--text-muted);
+            background: var(--bg-hover);
+        }
+
+        .search-results-info {
+            display: none;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 20px;
+            background: linear-gradient(135deg, rgba(0, 240, 255, 0.05), rgba(139, 92, 246, 0.05));
+            border-top: 1px solid var(--border-subtle);
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+        }
+
+        .search-results-info.visible {
+            display: flex;
+        }
+
+        .results-count {
+            font-weight: 600;
+            color: var(--neon-cyan);
+        }
+
+        .highlight {
+            background: rgba(245, 158, 11, 0.25);
+            color: var(--neon-yellow);
+            padding: 1px 3px;
+            border-radius: 3px;
+        }
+
+        /* ── Table ── */
+        .content-area {
+            padding: 0 32px 32px;
+        }
+
+        .section-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .sessions-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--bg-card);
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            border: 1px solid var(--border-subtle);
+        }
+
+        .sessions-table th {
+            text-align: left;
+            padding: 14px 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-muted);
+            background: var(--bg-surface);
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        .sessions-table td {
+            padding: 14px 20px;
+            font-size: 0.88rem;
+            color: var(--text-primary);
+            border-bottom: 1px solid var(--border-subtle);
+            vertical-align: top;
+        }
+
+        .sessions-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .sessions-table tr:hover td {
+            background: var(--bg-hover);
+        }
+
+        .session-row {
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .session-user {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .session-avatar {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: var(--grad-button);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 0.8rem;
+            color: #fff;
+            flex-shrink: 0;
+        }
+
+        .msg-count-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 28px;
+            padding: 2px 8px;
+            border-radius: 20px;
+            background: rgba(0, 240, 255, 0.1);
+            color: var(--neon-cyan);
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .session-id-text {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.78rem;
+            color: var(--text-muted);
+        }
+
+        /* ── Messages Pane ── */
+        .messages-pane {
+            display: none;
+            padding: 16px 20px;
+            background: var(--bg-surface);
+        }
+
+        .messages-pane.open {
+            display: block;
+        }
+
+        .msg-item {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 12px;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        .msg-item:last-child {
+            margin-bottom: 0;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(6px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .msg-role {
+            font-size: 0.72rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            padding: 3px 8px;
+            border-radius: 4px;
+            flex-shrink: 0;
+            height: fit-content;
+            margin-top: 2px;
+        }
+
+        .msg-role.user {
+            background: rgba(59, 130, 246, 0.15);
+            color: var(--neon-blue);
+        }
+
+        .msg-role.assistant {
+            background: rgba(0, 240, 255, 0.1);
+            color: var(--neon-cyan);
+        }
+
+        .msg-text {
+            font-size: 0.85rem;
+            line-height: 1.6;
+            color: var(--text-secondary);
+            word-break: break-word;
+        }
+
+        .msg-time {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-muted);
+        }
+
+        .empty-state svg {
+            width: 48px;
+            height: 48px;
+            color: var(--text-muted);
+            opacity: 0.5;
+            margin-bottom: 12px;
+        }
+
+        .loading-spinner {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 60px;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            gap: 10px;
+        }
+
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--border-subtle);
+            border-top-color: var(--neon-cyan);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* ── Delete Button ── */
+        .btn-delete {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            border: 1px solid transparent;
+            background: transparent;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-delete:hover {
+            color: var(--neon-red);
+            background: rgba(239, 68, 68, 0.1);
+            border-color: rgba(239, 68, 68, 0.2);
+        }
+
+        .btn-delete svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        /* ── Confirmation Modal ── */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 200;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s, visibility 0.3s;
+        }
+
+        .modal-overlay.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal-card {
+            width: 100%;
+            max-width: 420px;
+            padding: 32px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-lg);
+            box-shadow: 0 0 40px rgba(0, 0, 0, 0.4);
+            animation: fadeUp 0.3s ease-out;
+        }
+
+        .modal-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: rgba(239, 68, 68, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 16px;
+            color: var(--neon-red);
+        }
+
+        .modal-icon svg {
+            width: 24px;
+            height: 24px;
+        }
+
+        .modal-title {
+            text-align: center;
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .modal-desc {
+            text-align: center;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+            margin-bottom: 6px;
+        }
+
+        .modal-session-info {
+            text-align: center;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-bottom: 24px;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .modal-actions button {
+            flex: 1;
+            padding: 11px;
+            border-radius: var(--radius-sm);
+            font-family: inherit;
+            font-size: 0.88rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-modal-cancel {
+            background: transparent;
+            color: var(--text-secondary);
+            border: 1px solid var(--border-subtle);
+        }
+
+        .btn-modal-cancel:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+        }
+
+        .btn-modal-delete {
+            background: var(--neon-red);
+            color: #fff;
+            border: none;
+        }
+
+        .btn-modal-delete:hover {
+            background: #dc2626;
+            box-shadow: 0 4px 16px rgba(239, 68, 68, 0.3);
+        }
+
+        .btn-modal-delete:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 768px) {
+            .admin-header {
+                padding: 16px;
+            }
+
+            .stats-bar {
+                padding: 16px;
+                gap: 10px;
+            }
+
+            .search-panel {
+                margin: 0 16px 16px;
+            }
+
+            .search-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .content-area {
+                padding: 0 16px 16px;
+            }
+
+            .sessions-table th,
+            .sessions-table td {
+                padding: 10px 12px;
+                font-size: 0.82rem;
+            }
+
+            .session-id-text {
+                display: none;
+            }
+
+            .login-card {
+                margin: 16px;
+                padding: 28px 24px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- ═══════════════════════════════════════
+       LOGIN OVERLAY
+       ═══════════════════════════════════════ -->
+    <div class="login-overlay" id="login-overlay">
+        <div class="login-card">
+            <div class="login-header">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path d="M12 2L3 7v5c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-9-5z" />
+                    <path d="M9 12l2 2 4-4" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                <h1>CyberGuard Admin</h1>
+                <p>กรุณาเข้าสู่ระบบเพื่อเข้าถึงแดชบอร์ด</p>
+            </div>
+
+            <div class="login-error" id="login-error">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="15" y1="9" x2="9" y2="15"></line>
+                    <line x1="9" y1="9" x2="15" y2="15"></line>
+                </svg>
+                <span id="login-error-text">ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง</span>
+            </div>
+
+            <form id="login-form" onsubmit="handleLogin(event)">
+                <div class="login-field">
+                    <label for="admin-user">ชื่อผู้ใช้</label>
+                    <input type="text" id="admin-user" placeholder="ป้อนชื่อผู้ใช้..." required autocomplete="username">
+                </div>
+                <div class="login-field">
+                    <label for="admin-pass">รหัสผ่าน</label>
+                    <input type="password" id="admin-pass" placeholder="ป้อนรหัสผ่าน..." required
+                        autocomplete="current-password">
+                </div>
+                <button type="submit" class="btn-login" id="btn-login">
+                    <div class="spinner-sm"></div>
+                    <span class="btn-text">เข้าสู่ระบบ</span>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════
+       DASHBOARD (hidden until login)
+       ═══════════════════════════════════════ -->
+    <div class="dashboard" id="dashboard">
+
+        <header class="admin-header">
+            <div class="admin-logo">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path d="M12 2L3 7v5c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-9-5z" />
+                    <path d="M9 12l2 2 4-4" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                <h1>CyberGuard <span>Admin Dashboard</span></h1>
+            </div>
+            <div class="header-right">
+                <a href="/" class="back-link">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                        <polyline points="15 18 9 12 15 6"></polyline>
+                    </svg>
+                    กลับไปแชท
+                </a>
+                <button class="logout-btn" onclick="adminLogout()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                        <polyline points="16 17 21 12 16 7"></polyline>
+                        <line x1="21" y1="12" x2="9" y2="12"></line>
+                    </svg>
+                    ออกจากระบบ
+                </button>
+            </div>
+        </header>
+
+        <!-- Stats Bar -->
+        <div class="stats-bar">
+            <div class="stat-card">
+                <div class="stat-value" id="total-sessions">—</div>
+                <div class="stat-label">เซสชันทั้งหมด</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="total-messages">—</div>
+                <div class="stat-label">ข้อความทั้งหมด</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="unique-users">—</div>
+                <div class="stat-label">ผู้ใช้ที่ไม่ซ้ำ</div>
+            </div>
+        </div>
+
+        <!-- Search Panel -->
+        <div class="search-panel">
+            <div class="search-header" onclick="toggleSearch()">
+                <div class="search-header-left">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                    ค้นหาบันทึกการสนทนา
+                </div>
+                <svg class="search-toggle-icon" id="search-toggle-icon" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+            </div>
+            <div class="search-body" id="search-body">
+                <div class="search-grid">
+                    <div class="search-field">
+                        <label>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12"
+                                height="12">
+                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                                <circle cx="12" cy="7" r="4"></circle>
+                            </svg>
+                            ชื่อผู้ใช้
+                        </label>
+                        <input type="text" id="search-user" placeholder="ค้นหาชื่อผู้ใช้..." autocomplete="off">
+                    </div>
+                    <div class="search-field">
+                        <label>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12"
+                                height="12">
+                                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                            </svg>
+                            เนื้อหาข้อความ
+                        </label>
+                        <input type="text" id="search-content" placeholder="ค้นหาข้อความในบทสนทนา..."
+                            autocomplete="off">
+                    </div>
+                    <div class="search-field">
+                        <label>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12"
+                                height="12">
+                                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                                <line x1="16" y1="2" x2="16" y2="6"></line>
+                                <line x1="8" y1="2" x2="8" y2="6"></line>
+                                <line x1="3" y1="10" x2="21" y2="10"></line>
+                            </svg>
+                            ตั้งแต่วันที่
+                        </label>
+                        <input type="datetime-local" id="search-date-from">
+                    </div>
+                    <div class="search-field">
+                        <label>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12"
+                                height="12">
+                                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                                <line x1="16" y1="2" x2="16" y2="6"></line>
+                                <line x1="8" y1="2" x2="8" y2="6"></line>
+                                <line x1="3" y1="10" x2="21" y2="10"></line>
+                            </svg>
+                            ถึงวันที่
+                        </label>
+                        <input type="datetime-local" id="search-date-to">
+                    </div>
+                    <div class="search-actions">
+                        <button class="btn-search" onclick="performSearch()">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16"
+                                height="16">
+                                <circle cx="11" cy="11" r="8"></circle>
+                                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                            </svg>
+                            ค้นหา
+                        </button>
+                        <button class="btn-clear" onclick="clearSearch()">ล้างการค้นหา</button>
+                    </div>
+                </div>
+            </div>
+            <div class="search-results-info" id="search-results-info">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+                <span id="search-results-text"></span>
+            </div>
+        </div>
+
+        <!-- Sessions Table -->
+        <div class="content-area">
+            <div class="section-title" id="section-title">📋 เซสชันการสนทนา</div>
+            <div id="sessions-container">
+                <div class="loading-spinner">
+                    <div class="spinner"></div>กำลังโหลดข้อมูล...
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ═══ Delete Confirmation Modal ═══ -->
+    <div class="modal-overlay" id="delete-modal" onclick="if(event.target===this) closeModal()">
+        <div class="modal-card">
+            <div class="modal-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="3 6 5 6 21 6"></polyline>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                </svg>
+            </div>
+            <div class="modal-title">ยืนยันการลบเซสชัน</div>
+            <div class="modal-desc">
+                คุณแน่ใจหรือไม่ว่าต้องการลบเซสชันของ <strong id="modal-user"></strong>?<br>
+                ข้อความทั้งหมด <strong id="modal-msgs"></strong> ข้อความจะถูกลบอย่างถาวร
+            </div>
+            <div class="modal-session-info" id="modal-sid"></div>
+            <div class="modal-actions">
+                <button class="btn-modal-cancel" onclick="closeModal()">ยกเลิก</button>
+                <button class="btn-modal-delete" id="btn-confirm-delete" onclick="executeDelete()">ลบเซสชัน</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin;
+        let adminToken = sessionStorage.getItem('cyberguard_admin_token') || '';
+        let allSessions = [];
+        let isSearchMode = false;
+        let currentSearchContent = '';
+        let deleteTargetId = '';
+
+        // ═══ Auth Helpers ═══
+
+        function authHeaders() {
+            return { 'Authorization': 'Bearer ' + adminToken, 'Content-Type': 'application/json' };
+        }
+
+        // Auto-login if token exists in sessionStorage
+        window.addEventListener('DOMContentLoaded', async () => {
+            if (adminToken) {
+                try {
+                    const res = await fetch(API_BASE + '/api/sessions', { headers: authHeaders() });
+                    if (res.ok) { showDashboard(); return; }
+                } catch (e) { /* token invalid */ }
+                sessionStorage.removeItem('cyberguard_admin_token');
+                adminToken = '';
+            }
+            document.getElementById('admin-user').focus();
+        });
+
+        // ═══ Login ═══
+
+        async function handleLogin(e) {
+            e.preventDefault();
+            const loginBtn = document.getElementById('btn-login');
+            const errorEl = document.getElementById('login-error');
+            const errorText = document.getElementById('login-error-text');
+            errorEl.classList.remove('visible');
+            loginBtn.classList.add('loading');
+            loginBtn.disabled = true;
+
+            const username = document.getElementById('admin-user').value.trim();
+            const password = document.getElementById('admin-pass').value;
+
+            try {
+                const res = await fetch(API_BASE + '/api/admin/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: username, password: password })
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    adminToken = data.token;
+                    sessionStorage.setItem('cyberguard_admin_token', adminToken);
+                    showDashboard();
+                } else {
+                    errorText.textContent = 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง';
+                    errorEl.classList.add('visible');
+                    document.getElementById('admin-pass').value = '';
+                    document.getElementById('admin-pass').focus();
+                }
+            } catch (err) {
+                errorText.textContent = 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้';
+                errorEl.classList.add('visible');
+            } finally {
+                loginBtn.classList.remove('loading');
+                loginBtn.disabled = false;
+            }
+        }
+
+        function showDashboard() {
+            document.getElementById('login-overlay').classList.add('hidden');
+            document.getElementById('dashboard').classList.add('visible');
+            document.getElementById('search-body').classList.add('open');
+            document.getElementById('search-toggle-icon').classList.add('open');
+            loadSessions();
+        }
+
+        function adminLogout() {
+            adminToken = '';
+            sessionStorage.removeItem('cyberguard_admin_token');
+            document.getElementById('dashboard').classList.remove('visible');
+            document.getElementById('login-overlay').classList.remove('hidden');
+            document.getElementById('admin-user').value = '';
+            document.getElementById('admin-pass').value = '';
+            document.getElementById('login-error').classList.remove('visible');
+            document.getElementById('admin-user').focus();
+        }
+
+        // ═══ Search ═══
+
+        function toggleSearch() {
+            document.getElementById('search-body').classList.toggle('open');
+            document.getElementById('search-toggle-icon').classList.toggle('open');
+        }
+
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') {
+                var searchBody = document.getElementById('search-body');
+                if (searchBody && searchBody.classList.contains('open')) {
+                    var active = document.activeElement;
+                    if (active && active.closest('.search-panel')) { performSearch(); }
+                }
+            }
+            if (e.key === 'Escape') { closeModal(); }
+        });
+
+        async function loadSessions() {
+            var container = document.getElementById('sessions-container');
+            try {
+                var res = await fetch(API_BASE + '/api/sessions', { headers: authHeaders() });
+                if (res.status === 401) { adminLogout(); return; }
+                if (!res.ok) throw new Error('Failed');
+                allSessions = await res.json();
+                updateStats(allSessions);
+                renderSessions(allSessions);
+            } catch (err) {
+                console.error('Error loading sessions:', err);
+                container.innerHTML = '<div class="empty-state"><p>❌ ไม่สามารถโหลดข้อมูลได้</p></div>';
+            }
+        }
+
+        async function performSearch() {
+            var userName = document.getElementById('search-user').value.trim();
+            var content = document.getElementById('search-content').value.trim();
+            var dateFrom = document.getElementById('search-date-from').value;
+            var dateTo = document.getElementById('search-date-to').value;
+
+            if (!userName && !content && !dateFrom && !dateTo) { clearSearch(); return; }
+
+            var container = document.getElementById('sessions-container');
+            container.innerHTML = '<div class="loading-spinner"><div class="spinner"></div> กำลังค้นหา...</div>';
+
+            var params = new URLSearchParams();
+            if (userName) params.set('userName', userName);
+            if (content) params.set('content', content);
+            if (dateFrom) params.set('dateFrom', dateFrom);
+            if (dateTo) params.set('dateTo', dateTo);
+
+            try {
+                var res = await fetch(API_BASE + '/api/search?' + params.toString(), { headers: authHeaders() });
+                if (res.status === 401) { adminLogout(); return; }
+                if (!res.ok) throw new Error('Search failed');
+                var results = await res.json();
+
+                isSearchMode = true;
+                currentSearchContent = content;
+
+                var filters = [];
+                if (userName) filters.push('ชื่อ: "' + userName + '"');
+                if (content) filters.push('เนื้อหา: "' + content + '"');
+                if (dateFrom) filters.push('ตั้งแต่: ' + new Date(dateFrom).toLocaleString('th-TH'));
+                if (dateTo) filters.push('ถึง: ' + new Date(dateTo).toLocaleString('th-TH'));
+
+                var infoEl = document.getElementById('search-results-info');
+                document.getElementById('search-results-text').innerHTML =
+                    'พบ <span class="results-count">' + results.length + '</span> เซสชัน — ' + filters.join(' | ');
+                infoEl.classList.add('visible');
+
+                document.getElementById('section-title').textContent = '🔍 ผลการค้นหา';
+                renderSearchResults(results, content);
+            } catch (err) {
+                console.error('Search error:', err);
+                container.innerHTML = '<div class="empty-state"><p>❌ เกิดข้อผิดพลาดในการค้นหา</p></div>';
+            }
+        }
+
+        function clearSearch() {
+            document.getElementById('search-user').value = '';
+            document.getElementById('search-content').value = '';
+            document.getElementById('search-date-from').value = '';
+            document.getElementById('search-date-to').value = '';
+            isSearchMode = false;
+            currentSearchContent = '';
+            document.getElementById('search-results-info').classList.remove('visible');
+            document.getElementById('section-title').textContent = '📋 เซสชันการสนทนา';
+            renderSessions(allSessions);
+        }
+
+        // ═══ Stats ═══
+
+        function updateStats(sessions) {
+            var totalMessages = sessions.reduce(function (sum, s) { return sum + parseInt(s.message_count || 0); }, 0);
+            var uniqueUsers = new Set(sessions.map(function (s) { return s.user_name.toLowerCase(); })).size;
+            document.getElementById('total-sessions').textContent = sessions.length;
+            document.getElementById('total-messages').textContent = totalMessages;
+            document.getElementById('unique-users').textContent = uniqueUsers;
+        }
+
+        // ═══ Render ═══
+
+        function renderSessions(sessions) {
+            var container = document.getElementById('sessions-container');
+            if (sessions.length === 0) {
+                container.innerHTML = '<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><p>ยังไม่มีเซสชันการสนทนา</p></div>';
+                return;
+            }
+            container.innerHTML = buildTableHTML(sessions, false, '');
+        }
+
+        function renderSearchResults(results, contentQuery) {
+            var container = document.getElementById('sessions-container');
+            if (results.length === 0) {
+                container.innerHTML = '<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg><p>ไม่พบผลลัพธ์ที่ตรงกับการค้นหา</p></div>';
+                return;
+            }
+            container.innerHTML = buildTableHTML(results, true, contentQuery);
+            if (contentQuery && results.length > 0) {
+                var firstPane = document.getElementById('pane-' + results[0].id);
+                if (firstPane) {
+                    renderInlineMessages(results[0], contentQuery, firstPane);
+                    firstPane.classList.add('open');
+                }
+            }
+        }
+
+        // ═══ Table Builder ═══
+
+        function buildTableHTML(sessions, hasInlineMessages, contentQuery) {
+            var html = '<table class="sessions-table"><thead><tr>' +
+                '<th>ผู้ใช้</th><th>Session ID</th><th>เวลาเริ่ม</th><th>ข้อความ</th><th style="width:50px"></th>' +
+                '</tr></thead><tbody>';
+
+            sessions.forEach(function (s) {
+                var date = new Date(s.created_at);
+                var timeStr = date.toLocaleString('th-TH', {
+                    year: 'numeric', month: 'short', day: 'numeric',
+                    hour: '2-digit', minute: '2-digit'
+                });
+
+                var sData = JSON.stringify(s).replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                var clickHandler = hasInlineMessages
+                    ? "toggleInlineMessages('" + s.id + "', " + sData + ", '" + escapeAttr(contentQuery || '') + "')"
+                    : "toggleSession('" + s.id + "')";
+
+                var escapedName = escapeAttr(s.user_name);
+
+                html += '<tr class="session-row">' +
+                    '<td onclick="' + clickHandler + '"><div class="session-user">' +
+                    '<div class="session-avatar">' + s.user_name.charAt(0).toUpperCase() + '</div>' +
+                    escapeHtml(s.user_name) +
+                    '</div></td>' +
+                    '<td onclick="' + clickHandler + '"><span class="session-id-text">' + s.id.substring(0, 8) + '...</span></td>' +
+                    '<td onclick="' + clickHandler + '">' + timeStr + '</td>' +
+                    '<td onclick="' + clickHandler + '"><span class="msg-count-badge">' + s.message_count + '</span></td>' +
+                    '<td>' +
+                    '<button class="btn-delete" onclick="event.stopPropagation(); confirmDelete(\'' + s.id + '\', \'' + escapedName + '\', ' + s.message_count + ')" title="ลบเซสชัน">' +
+                    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
+                    '<polyline points="3 6 5 6 21 6"></polyline>' +
+                    '<path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>' +
+                    '<line x1="10" y1="11" x2="10" y2="17"></line>' +
+                    '<line x1="14" y1="11" x2="14" y2="17"></line>' +
+                    '</svg>' +
+                    '</button>' +
+                    '</td>' +
+                    '</tr>' +
+                    '<tr><td colspan="5" style="padding:0; border:none;">' +
+                    '<div class="messages-pane" id="pane-' + s.id + '"></div>' +
+                    '</td></tr>';
+            });
+
+            html += '</tbody></table>';
+            return html;
+        }
+
+        // ═══ Toggle Messages ═══
+
+        async function toggleSession(sessionId) {
+            var pane = document.getElementById('pane-' + sessionId);
+            if (!pane) return;
+            if (pane.classList.contains('open')) { pane.classList.remove('open'); return; }
+            document.querySelectorAll('.messages-pane.open').forEach(function (p) { p.classList.remove('open'); });
+            pane.innerHTML = '<div class="loading-spinner"><div class="spinner"></div> กำลังโหลดข้อความ...</div>';
+            pane.classList.add('open');
+            try {
+                var res = await fetch(API_BASE + '/api/history/' + sessionId, { headers: authHeaders() });
+                if (!res.ok) throw new Error('Failed');
+                var messages = await res.json();
+                renderMessagesInPane(pane, messages, '');
+            } catch (err) {
+                pane.innerHTML = '<p style="padding:12px; color:#ef4444; font-size:0.85rem;">❌ ไม่สามารถโหลดข้อความได้</p>';
+            }
+        }
+
+        function toggleInlineMessages(sessionId, sessionData, contentQuery) {
+            var pane = document.getElementById('pane-' + sessionId);
+            if (!pane) return;
+            if (pane.classList.contains('open')) { pane.classList.remove('open'); return; }
+            document.querySelectorAll('.messages-pane.open').forEach(function (p) { p.classList.remove('open'); });
+            renderInlineMessages(sessionData, contentQuery, pane);
+            pane.classList.add('open');
+        }
+
+        function renderInlineMessages(sessionData, contentQuery, pane) {
+            renderMessagesInPane(pane, sessionData.messages || [], contentQuery);
+        }
+
+        function renderMessagesInPane(pane, messages, contentQuery) {
+            if (!messages || messages.length === 0) {
+                pane.innerHTML = '<p style="padding:12px; color: var(--text-muted); font-size:0.85rem;">ไม่มีข้อความในเซสชันนี้</p>';
+                return;
+            }
+            var html = '';
+            messages.forEach(function (m) {
+                if (!m || !m.content) return;
+                var time = new Date(m.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+                var displayContent = escapeHtml(m.content);
+                if (contentQuery) {
+                    var regex = new RegExp('(' + escapeRegex(contentQuery) + ')', 'gi');
+                    displayContent = displayContent.replace(regex, '<span class="highlight">$1</span>');
+                }
+                if (displayContent.length > 600) {
+                    var truncated = displayContent.substring(0, 600);
+                    var lastSpace = truncated.lastIndexOf(' ');
+                    displayContent = truncated.substring(0, lastSpace > 500 ? lastSpace : 600) + '...';
+                }
+                html += '<div class="msg-item">' +
+                    '<span class="msg-role ' + m.role + '">' + (m.role === 'user' ? 'User' : 'AI') + '</span>' +
+                    '<div><div class="msg-text">' + displayContent + '</div>' +
+                    '<div class="msg-time">' + time + '</div></div></div>';
+            });
+            pane.innerHTML = html;
+        }
+
+        // ═══ Delete Session ═══
+
+        function confirmDelete(sessionId, userName, msgCount) {
+            deleteTargetId = sessionId;
+            document.getElementById('modal-user').textContent = userName;
+            document.getElementById('modal-msgs').textContent = msgCount;
+            document.getElementById('modal-sid').textContent = sessionId;
+            document.getElementById('delete-modal').classList.add('visible');
+        }
+
+        function closeModal() {
+            document.getElementById('delete-modal').classList.remove('visible');
+            deleteTargetId = '';
+            var btn = document.getElementById('btn-confirm-delete');
+            btn.disabled = false;
+            btn.textContent = 'ลบเซสชัน';
+        }
+
+        async function executeDelete() {
+            if (!deleteTargetId) return;
+            var btn = document.getElementById('btn-confirm-delete');
+            btn.disabled = true;
+            btn.textContent = 'กำลังลบ...';
+
+            try {
+                var res = await fetch(API_BASE + '/api/sessions/' + deleteTargetId, {
+                    method: 'DELETE',
+                    headers: authHeaders()
+                });
+                if (res.status === 401) { adminLogout(); return; }
+                if (!res.ok) throw new Error('Delete failed');
+
+                allSessions = allSessions.filter(function (s) { return s.id !== deleteTargetId; });
+                updateStats(allSessions);
+
+                if (isSearchMode) {
+                    performSearch();
+                } else {
+                    renderSessions(allSessions);
+                }
+
+                closeModal();
+            } catch (err) {
+                console.error('Delete error:', err);
+                btn.textContent = 'เกิดข้อผิดพลาด';
+                setTimeout(function () {
+                    btn.disabled = false;
+                    btn.textContent = 'ลบเซสชัน';
+                }, 2000);
+            }
+        }
+
+        // ═══ Helpers ═══
+
+        function escapeHtml(text) {
+            var div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function escapeRegex(str) {
+            return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        }
+
+        function escapeAttr(str) {
+            return str.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        }
+    </script>
+</body>
+
+</html>
