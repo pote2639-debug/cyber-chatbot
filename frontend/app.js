@@ -23,6 +23,7 @@ const sidebarBackdrop = document.getElementById('sidebar-backdrop');
 const userAvatar = document.getElementById('user-avatar');
 const userDisplayName = document.getElementById('user-display-name');
 const toastContainer = document.getElementById('toast-container');
+const sessionList = document.getElementById('session-list');
 
 // ─── Toast Notification System ──────────────────
 
@@ -182,6 +183,7 @@ function enterChatScreen() {
     userDisplayName.textContent = userName;
     welcomeScreen.classList.remove('active');
     chatScreen.classList.add('active');
+    loadSessions(); // Load active sessions into the sidebar
 }
 
 // ─── Welcome / Session ─────────────────────────
@@ -228,7 +230,12 @@ async function startChat() {
         console.error('Session error:', err);
         startBtn.disabled = false;
         startBtn.querySelector('span').textContent = 'เริ่มสนทนา';
-        showToast('ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้ กรุณาตรวจสอบว่า backend server กำลังทำงานอยู่', 'error', 5000);
+
+        if (err.message.includes('MAX_SESSIONS_REACHED')) {
+            showToast('คุณมีเซสชันสูงสุด 3 แชทแล้ว กรุณาลบแชทเก่าออกก่อน', 'error', 5000);
+        } else {
+            showToast('ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้ กรุณาตรวจสอบว่า backend server กำลังทำงานอยู่', 'error', 5000);
+        }
     }
 }
 
@@ -375,10 +382,137 @@ function askSuggestion(btn) {
     sendMessage();
 }
 
-function newChat() {
-    // Keep the username, just start fresh session
-    clearSession();
-    window.location.reload();
+// ─── Session Management ─────────────────────────
+
+async function loadSessions() {
+    if (!userName) return;
+    try {
+        const res = await fetch(`${API_BASE}/api/sessions/user/${userName}`);
+        if (!res.ok) throw new Error('Failed to load sessions');
+        const sessions = await res.json();
+
+        sessionList.innerHTML = '';
+
+        sessions.forEach((s, index) => {
+            const item = document.createElement('div');
+            item.className = `session-item ${s.id === sessionId ? 'active' : ''}`;
+
+            // Format time or use generic name
+            const label = `แชท ${sessions.length - index} (${s.message_count} ข้อความ)`;
+
+            item.innerHTML = `
+                <div class="session-item-name" title="${label}">${label}</div>
+                <button class="session-delete-btn" title="ลบเซสชัน" onclick="event.stopPropagation(); deleteUserSession('${s.id}')">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+                        <polyline points="3 6 5 6 21 6"></polyline>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                    </svg>
+                </button>
+            `;
+
+            item.addEventListener('click', () => switchSession(s.id));
+            sessionList.appendChild(item);
+        });
+
+    } catch (err) {
+        console.error('Error loading sessions:', err);
+    }
+}
+
+async function switchSession(newSessionId) {
+    if (newSessionId === sessionId) return;
+
+    try {
+        const res = await fetch(`${API_BASE}/api/history/${newSessionId}`);
+        if (!res.ok) throw new Error('Failed to fetch history');
+
+        const history = await res.json();
+        sessionId = newSessionId;
+        saveSession();
+
+        // Clear UI and render history
+        chatMessages.innerHTML = '';
+
+        if (history.length > 0) {
+            history.forEach(msg => { addMessage(msg.role, msg.content, false); });
+        } else {
+            addWelcomeMessage();
+        }
+
+        scrollToBottom();
+        loadSessions(); // Refresh UI to highlight active
+
+        if (window.innerWidth <= 1024) {
+            closeSidebar();
+        }
+    } catch (err) {
+        console.error('Error switching session:', err);
+        showToast('ไม่สามารถสลับแชทได้', 'error');
+    }
+}
+
+async function deleteUserSession(idToDelete) {
+    if (!confirm('คุณแน่ใจหรือไม่ว่าต้องการลบแชทนี้?')) return;
+
+    try {
+        const res = await fetch(`${API_BASE}/api/sessions/${idToDelete}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error('Failed to delete');
+
+        if (idToDelete === sessionId) {
+            // Deleted current session, switch back to welcome screen or another session
+            const remainRes = await fetch(`${API_BASE}/api/sessions/user/${userName}`);
+            const remaining = await remainRes.json();
+
+            if (remaining.length > 0) {
+                switchSession(remaining[0].id);
+            } else {
+                newChat(); // No sessions left
+            }
+        } else {
+            // Just refresh list
+            loadSessions();
+        }
+        showToast('ลบแชทสำเร็จ', 'success');
+    } catch (err) {
+        console.error('Error deleting session:', err);
+        showToast('ไม่สามารถลบแชทได้', 'error');
+    }
+}
+
+async function newChat() {
+    if (!userName) return;
+
+    try {
+        const res = await fetch(`${API_BASE}/api/session`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userName }),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+            if (data.error === 'MAX_SESSIONS_REACHED') {
+                showToast('คุณมีเซสชันสูงสุด 3 แชทแล้ว กรุณาลบแชทเก่าออกก่อน', 'error', 5000);
+            } else {
+                throw new Error('Failed to create session');
+            }
+            return;
+        }
+
+        sessionId = data.id;
+        saveSession();
+        chatMessages.innerHTML = '';
+        addWelcomeMessage();
+        loadSessions();
+
+        if (window.innerWidth <= 1024) {
+            closeSidebar();
+        }
+    } catch (err) {
+        console.error('New chat error:', err);
+        showToast('ไม่สามารถสร้างแชทใหม่ได้', 'error');
+    }
 }
 
 // ─── Init ───────────────────────────────────────

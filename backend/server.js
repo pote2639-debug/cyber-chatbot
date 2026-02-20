@@ -4,7 +4,7 @@ const crypto = require('crypto');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 
-const { initDB, createSession, saveMessage, getHistory, getAllSessions, searchLogs, deleteSession } = require('./db');
+const { initDB, createSession, saveMessage, getHistory, getAllSessions, searchLogs, deleteSession, getSessionsByUserName, getActiveSessionCount } = require('./db');
 
 const app = express();
 app.use(cors());
@@ -67,8 +67,40 @@ app.post('/api/session', async (req, res) => {
         console.log(`📋 New session: ${session.id} for "${userName.trim()}"`);
         res.json(session);
     } catch (err) {
+        if (err.message === 'MAX_SESSIONS_REACHED') {
+            return res.status(403).json({ error: 'MAX_SESSIONS_REACHED', message: 'You have reached the maximum limit of 3 active sessions.' });
+        }
         console.error('Error creating session:', err);
         res.status(500).json({ error: 'Failed to create session' });
+    }
+});
+
+// Get all active sessions for a user
+app.get('/api/sessions/user/:userName', async (req, res) => {
+    try {
+        const { userName } = req.params;
+        const sessions = await getSessionsByUserName(userName);
+        res.json(sessions);
+    } catch (err) {
+        console.error('Error fetching user sessions:', err);
+        res.status(500).json({ error: 'Failed to fetch sessions' });
+    }
+});
+
+// Delete a user session
+app.delete('/api/sessions/:sessionId', async (req, res) => {
+    try {
+        const { sessionId } = req.params;
+        const success = await deleteSession(sessionId);
+        if (success) {
+            console.log(`🗑️ Deleted session: ${sessionId}`);
+            res.json({ success: true });
+        } else {
+            res.status(404).json({ error: 'Session not found' });
+        }
+    } catch (err) {
+        console.error('Error deleting session:', err);
+        res.status(500).json({ error: 'Failed to delete session' });
     }
 });
 
@@ -236,7 +268,8 @@ const SYSTEM_PROMPT = `คุณคือ CyberGuard ผู้ช่วย AI �
 - ตอบให้กระชับ (2-4 ย่อหน้า เว้นแต่ผู้ใช้ต้องการรายละเอียดเพิ่มเติม)
 - เมื่อให้คำแนะนำ ให้ใช้ขั้นตอนที่ชัดเจนและปฏิบัติได้จริง
 - หากมีคำถามเกี่ยวกับสิ่งผิดกฎหมายหรืออันตราย ปฏิเสธอย่างสุภาพและเปลี่ยนเรื่อง
-- ส่งเสริมนิสัยความปลอดภัยที่ดีโดยไม่ตัดสินผู้ใช้`;
+- ส่งเสริมนิสัยความปลอดภัยที่ดีโดยไม่ตัดสินผู้ใช้
+- **สำคัญที่สุด:** หากคุณไม่ทราบคำตอบ ให้บอกตรงๆ ว่าไม่ทราบ ห้ามเดาหรือสร้างข้อมูลขึ้นมาเองเด็ดขาด`;
 
 async function callOpenRouterDirect(message, history, selectedModel) {
     const apiKey = process.env.OPENROUTER_API_KEY;
@@ -247,8 +280,8 @@ async function callOpenRouterDirect(message, history, selectedModel) {
     // Build messages array with history
     const messages = [{ role: 'system', content: SYSTEM_PROMPT }];
 
-    // Add recent conversation history (last 20 messages for context)
-    const recentHistory = history.slice(-20);
+    // Add recent conversation history (last 30 messages for context, mitigates hallucination)
+    const recentHistory = history.slice(-30);
     for (const msg of recentHistory) {
         messages.push({ role: msg.role, content: msg.content });
     }

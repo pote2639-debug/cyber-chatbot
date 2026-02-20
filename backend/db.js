@@ -39,13 +39,40 @@ async function initDB() {
   }
 }
 
+// Get active session count for a user
+async function getActiveSessionCount(userName) {
+  const result = await pool.query(
+    'SELECT COUNT(*) FROM sessions WHERE user_name = $1',
+    [userName]
+  );
+  return parseInt(result.rows[0].count);
+}
+
 // Create a new session
 async function createSession(userName) {
+  const count = await getActiveSessionCount(userName);
+  if (count >= 3) {
+    throw new Error('MAX_SESSIONS_REACHED');
+  }
+
   const result = await pool.query(
     'INSERT INTO sessions (user_name) VALUES ($1) RETURNING id, user_name, created_at',
     [userName]
   );
   return result.rows[0];
+}
+
+// Get all sessions for a specific user
+async function getSessionsByUserName(userName) {
+  const result = await pool.query(
+    `SELECT id, created_at, 
+      (SELECT COUNT(*) FROM messages WHERE session_id = sessions.id) as message_count
+     FROM sessions 
+     WHERE user_name = $1 
+     ORDER BY created_at DESC`,
+    [userName]
+  );
+  return result.rows;
 }
 
 // Save a message
@@ -153,4 +180,8 @@ async function deleteSession(sessionId) {
   return result.rowCount > 0;
 }
 
-module.exports = { pool, initDB, createSession, saveMessage, getHistory, getAllSessions, searchLogs, deleteSession };
+module.exports = {
+  pool, initDB, createSession, saveMessage, getHistory,
+  getAllSessions, searchLogs, deleteSession,
+  getSessionsByUserName, getActiveSessionCount
+};
