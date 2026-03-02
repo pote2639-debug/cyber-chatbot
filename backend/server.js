@@ -224,6 +224,75 @@ app.get('/api/models', (req, res) => {
     ]);
 });
 
+// Generate fresh suggested questions using OpenRouter AI
+app.get('/api/suggestions', async (req, res) => {
+    try {
+        const apiKey = process.env.OPENROUTER_API_KEY;
+        if (!apiKey) throw new Error('OPENROUTER_API_KEY not set');
+
+        const model = MODEL_TIERS.fast;
+
+        const prompt = `สร้างคำถาม 6 ข้อเกี่ยวกับความปลอดภัยทางไซเบอร์สำหรับคนทั่วไปที่ไม่มีความรู้ด้านเทคนิค
+
+กฎสำคัญ:
+- ห้ามใช้คำศัพท์เทคนิคใดๆ เช่น Phishing, VPN, 2FA, Malware, Firewall, Ransomware, Encryption เป็นต้น
+- ตั้งคำถามด้วยภาษาไทยง่ายๆ ที่คนทั่วไปพูดในชีวิตประจำวัน
+- คำถามควรเกี่ยวกับสถานการณ์จริงในชีวิตประจำวัน เช่น ใช้มือถือ, ซื้อของออนไลน์, ใช้โซเชียลมีเดีย, ได้รับข้อความแปลกๆ
+- คำถามต้องหลากหลายหัวข้อ ไม่ซ้ำกัน
+- แต่ละคำถามต้องสั้นกระชับ ไม่เกิน 30 คำ
+
+ตอบเป็น JSON array เท่านั้น ไม่ต้องมีคำอธิบายอื่น ในรูปแบบ:
+[{"emoji":"🔒","text":"คำถามที่นี่"},{"emoji":"📱","text":"คำถามที่นี่"}]
+
+ใช้อิโมจิที่เกี่ยวข้องกับแต่ละคำถาม เช่น 🔒📱💳🛒📧🌐💻📲🏠🔑`;
+
+        const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'Content-Type': 'application/json',
+                'HTTP-Referer': 'http://localhost:3000',
+                'X-Title': 'CyberGuard Chatbot',
+            },
+            body: JSON.stringify({
+                model,
+                messages: [
+                    { role: 'system', content: 'คุณเป็นผู้ช่วยสร้างคำถามแนะนำ ตอบเป็น JSON array เท่านั้น ห้ามมี markdown หรือ code block' },
+                    { role: 'user', content: prompt },
+                ],
+                max_tokens: 512,
+                temperature: 1.0,
+            }),
+        });
+
+        if (!response.ok) {
+            const errData = await response.text();
+            throw new Error(`OpenRouter error ${response.status}: ${errData}`);
+        }
+
+        const data = await response.json();
+        let content = data.choices?.[0]?.message?.content || '[]';
+
+        // Clean up: strip markdown code fences if present
+        content = content.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+
+        const suggestions = JSON.parse(content);
+        console.log('🔄 Generated fresh suggestions');
+        res.json(suggestions);
+    } catch (err) {
+        console.error('Error generating suggestions:', err);
+        // Return default fallback suggestions if AI fails
+        res.json([
+            { emoji: '🔒', text: 'ถ้าได้รับข้อความบอกว่าบัญชีจะถูกปิด ควรทำยังไง?' },
+            { emoji: '📱', text: 'ใช้ WiFi ฟรีตามร้านกาแฟ มีอะไรต้องระวังไหม?' },
+            { emoji: '💳', text: 'ซื้อของออนไลน์ยังไงให้ปลอดภัย ไม่โดนหลอก?' },
+            { emoji: '🔑', text: 'ตั้งรหัสผ่านยังไงให้คนอื่นเดาไม่ได้?' },
+            { emoji: '📧', text: 'ได้อีเมลแปลกๆ มา รู้ได้ยังไงว่าเป็นของปลอม?' },
+            { emoji: '📲', text: 'แอปไหนในมือถือที่ควรระวังเรื่องความปลอดภัย?' },
+        ]);
+    }
+});
+
 // Search sessions and messages (admin search — protected)
 app.get('/api/search', requireAdmin, async (req, res) => {
     try {

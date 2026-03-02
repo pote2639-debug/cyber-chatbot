@@ -382,6 +382,41 @@ function askSuggestion(btn) {
     sendMessage();
 }
 
+async function refreshSuggestions() {
+    const btn = document.getElementById('refresh-suggestions-btn');
+    const container = document.getElementById('suggested-questions');
+    if (!btn || !container) return;
+
+    // Prevent double-clicking
+    if (btn.classList.contains('spinning')) return;
+
+    btn.classList.add('spinning');
+
+    try {
+        const res = await fetch(`${API_BASE}/api/suggestions`);
+        if (!res.ok) throw new Error('Failed to fetch suggestions');
+
+        const suggestions = await res.json();
+
+        // Clear existing and render new suggestions
+        container.innerHTML = '';
+        suggestions.forEach(item => {
+            const button = document.createElement('button');
+            button.className = 'suggestion-btn';
+            button.textContent = `${item.emoji} ${item.text}`;
+            button.onclick = function () { askSuggestion(this); };
+            container.appendChild(button);
+        });
+
+        showToast('คำถามแนะนำถูกรีเฟรชแล้ว', 'success', 2000);
+    } catch (err) {
+        console.error('Error refreshing suggestions:', err);
+        showToast('ไม่สามารถรีเฟรชคำถามได้ ลองใหม่อีกครั้ง', 'error', 3000);
+    } finally {
+        btn.classList.remove('spinning');
+    }
+}
+
 // ─── Session Management ─────────────────────────
 
 async function loadSessions() {

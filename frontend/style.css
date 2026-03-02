@@ -412,6 +412,42 @@ body {
   color: var(--text-muted);
 }
 
+.suggestions-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.refresh-suggestions-btn {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-right: 12px;
+}
+
+.refresh-suggestions-btn:hover {
+  background: var(--bg-hover);
+  color: var(--neon-cyan);
+  border-color: var(--border-accent);
+}
+
+.refresh-suggestions-btn.spinning svg {
+  animation: spin-refresh 0.8s linear infinite;
+}
+
+@keyframes spin-refresh {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 .session-list {
   display: flex;
   flex-direction: column;

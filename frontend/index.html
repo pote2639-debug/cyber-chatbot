@@ -77,14 +77,23 @@
         <!-- Sessions will be loaded here dynamically -->
       </div>
 
-      <div class="sidebar-section-label">คำถามแนะนำ</div>
-      <div class="suggested-questions">
-        <button class="suggestion-btn" onclick="askSuggestion(this)">🔒 ฟิชชิ่ง (Phishing) คืออะไร?</button>
-        <button class="suggestion-btn" onclick="askSuggestion(this)">🔑 วิธีตั้งรหัสผ่านที่แข็งแกร่งทำยังไง?</button>
-        <button class="suggestion-btn" onclick="askSuggestion(this)">🌐 VPN คืออะไร และจำเป็นต้องใช้ไหม?</button>
-        <button class="suggestion-btn" onclick="askSuggestion(this)">📧 รู้ได้ยังไงว่าอีเมลนั้นเป็นของปลอม?</button>
-        <button class="suggestion-btn" onclick="askSuggestion(this)">📱 WiFi สาธารณะใช้ได้ปลอดภัยไหม?</button>
-        <button class="suggestion-btn" onclick="askSuggestion(this)">🛡️ การยืนยันตัวตนสองชั้น (2FA) คืออะไร?</button>
+      <div class="sidebar-section-label suggestions-header">
+        <span>คำถามแนะนำ</span>
+        <button class="refresh-suggestions-btn" id="refresh-suggestions-btn" onclick="refreshSuggestions()" title="รีเฟรชคำถามแนะนำ">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
+            <polyline points="23 4 23 10 17 10"></polyline>
+            <polyline points="1 20 1 14 7 14"></polyline>
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+          </svg>
+        </button>
+      </div>
+      <div class="suggested-questions" id="suggested-questions">
+        <button class="suggestion-btn" onclick="askSuggestion(this)">🔒 ถ้าได้รับข้อความบอกว่าบัญชีจะถูกปิด ควรทำยังไง?</button>
+        <button class="suggestion-btn" onclick="askSuggestion(this)">📱 ใช้ WiFi ฟรีตามร้านกาแฟ มีอะไรต้องระวังไหม?</button>
+        <button class="suggestion-btn" onclick="askSuggestion(this)">💳 ซื้อของออนไลน์ยังไงให้ปลอดภัย ไม่โดนหลอก?</button>
+        <button class="suggestion-btn" onclick="askSuggestion(this)">🔑 ตั้งรหัสผ่านยังไงให้คนอื่นเดาไม่ได้?</button>
+        <button class="suggestion-btn" onclick="askSuggestion(this)">📧 ได้อีเมลแปลกๆ มา รู้ได้ยังไงว่าเป็นของปลอม?</button>
+        <button class="suggestion-btn" onclick="askSuggestion(this)">📲 แอปไหนในมือถือที่ควรระวังเรื่องความปลอดภัย?</button>
       </div>
       <div class="sidebar-footer">
         <div class="user-badge" id="user-badge">
