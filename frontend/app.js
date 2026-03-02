@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════
-   CyberGuard — Frontend Chat Application Logic (Thai)
+   CyberChat — Frontend Chat Application Logic (Thai)
    ═══════════════════════════════════════════════════ */
 
 const API_BASE = window.location.origin;
@@ -241,7 +241,7 @@ async function startChat() {
 
 function addWelcomeMessage() {
     const welcomeMsg = [
-        `สวัสดีครับ/ค่ะ ${userName}! 👋 ฉันชื่อ **CyberGuard** ผู้ช่วย AI ด้านความปลอดภัยทางไซเบอร์ของคุณ`,
+        `สวัสดีครับ/ค่ะ ${userName}! 👋 ฉันชื่อ **CyberChat** ผู้ช่วย AI ด้านความปลอดภัยทางไซเบอร์ของคุณ`,
         'คุณสามารถถามเรื่องความปลอดภัยทางไซเบอร์ได้ทุกอย่าง ฉันจะอธิบายด้วยภาษาไทยง่ายๆ ไม่มีศัพท์เทคนิคที่ซับซ้อน!',
         'ลองถามอะไรแบบนี้ได้เลย:\n• "ฟิชชิ่งคืออะไร?"\n• "ตั้งรหัสผ่านที่แข็งแกร่งยังไง?"\n• "WiFi สาธารณะใช้ได้ปลอดภัยไหม?"'
     ].join('\n\n');
@@ -390,7 +390,13 @@ async function refreshSuggestions() {
     if (!btn || !container) return;
 
     // Prevent double-clicking or during cooldown
-    if (btn.classList.contains('spinning') || btn.classList.contains('cooldown')) return;
+    if (btn.classList.contains('spinning')) return;
+    if (btn.classList.contains('cooldown')) {
+        const match = btn.title.match(/\d+/);
+        const secs = match ? match[0] : '...';
+        showToast(`กรุณารอ ${secs} วินาทีก่อนรีเฟรชอีกครั้ง`, 'warning', 2000);
+        return;
+    }
 
     btn.classList.add('spinning');
 

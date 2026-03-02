@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════
-   CyberGuard — Cybersecurity AI Chatbot Theme
+   CyberChat — Cybersecurity AI Chatbot Theme
    Dark cyber-neon aesthetic with glassmorphism
    ═══════════════════════════════════════════════════ */
 
@@ -444,8 +444,13 @@ body {
 }
 
 @keyframes spin-refresh {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .session-list {

@@ -1,4 +1,4 @@
-# CyberGuard — AI Cybersecurity Chatbot
+# CyberChat — AI Cybersecurity Chatbot
 
 A thesis-grade AI chatbot that helps everyday users understand cybersecurity in simple, plain language.
 

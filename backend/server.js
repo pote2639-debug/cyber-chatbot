@@ -280,7 +280,7 @@ app.get('/api/suggestions', async (req, res) => {
                 'Authorization': `Bearer ${apiKey}`,
                 'Content-Type': 'application/json',
                 'HTTP-Referer': 'http://localhost:3000',
-                'X-Title': 'CyberGuard Chatbot',
+                'X-Title': 'CyberChat Chatbot',
             },
             body: JSON.stringify({
                 model,
@@ -373,7 +373,7 @@ async function callN8N(message, history, model) {
 
 // ─── Direct OpenRouter Fallback ───────────────────────────
 
-const SYSTEM_PROMPT = `คุณคือ CyberGuard ผู้ช่วย AI ด้านความปลอดภัยทางไซเบอร์ที่เป็นมิตรและเข้าถึงได้ง่าย ภารกิจของคุณคือช่วยให้คนทั่วไปชาวไทยเข้าใจเรื่องความปลอดภัยทางไซเบอร์
+const SYSTEM_PROMPT = `คุณคือ CyberChat ผู้ช่วย AI ด้านความปลอดภัยทางไซเบอร์ที่เป็นมิตรและเข้าถึงได้ง่าย ภารกิจของคุณคือช่วยให้คนทั่วไปชาวไทยเข้าใจเรื่องความปลอดภัยทางไซเบอร์
 
 กฎการตอบ:
 - ตอบเป็นภาษาไทยเสมอ ไม่ว่าผู้ใช้จะถามเป็นภาษาอะไรก็ตาม
@@ -414,7 +414,7 @@ async function callOpenRouterDirect(message, history, selectedModel) {
             'Authorization': `Bearer ${apiKey}`,
             'Content-Type': 'application/json',
             'HTTP-Referer': 'http://localhost:3000',
-            'X-Title': 'CyberGuard Chatbot',
+            'X-Title': 'CyberChat Chatbot',
         },
         body: JSON.stringify({
             model,
@@ -441,7 +441,7 @@ async function start() {
     try {
         await initDB();
         app.listen(PORT, '0.0.0.0', () => {
-            console.log(`\n🛡️  CyberGuard Backend running on http://localhost:${PORT}`);
+            console.log(`\n🛡️  CyberChat Backend running on http://localhost:${PORT}`);
             console.log(`📂 Frontend served at http://localhost:${PORT}`);
             console.log(`⚙️  n8n dashboard at http://localhost:5678\n`);
         });
