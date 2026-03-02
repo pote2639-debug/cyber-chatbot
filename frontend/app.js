@@ -382,18 +382,28 @@ function askSuggestion(btn) {
     sendMessage();
 }
 
+let refreshCooldownTimer = null;
+
 async function refreshSuggestions() {
     const btn = document.getElementById('refresh-suggestions-btn');
     const container = document.getElementById('suggested-questions');
     if (!btn || !container) return;
 
-    // Prevent double-clicking
-    if (btn.classList.contains('spinning')) return;
+    // Prevent double-clicking or during cooldown
+    if (btn.classList.contains('spinning') || btn.classList.contains('cooldown')) return;
 
     btn.classList.add('spinning');
 
     try {
         const res = await fetch(`${API_BASE}/api/suggestions`);
+
+        if (res.status === 429) {
+            const data = await res.json();
+            showToast(data.message || 'กรุณารอสักครู่ก่อนรีเฟรชอีกครั้ง', 'warning', 3000);
+            startCooldown(btn, data.retryAfter || 30);
+            return;
+        }
+
         if (!res.ok) throw new Error('Failed to fetch suggestions');
 
         const suggestions = await res.json();
@@ -409,12 +419,35 @@ async function refreshSuggestions() {
         });
 
         showToast('คำถามแนะนำถูกรีเฟรชแล้ว', 'success', 2000);
+        startCooldown(btn, 30);
     } catch (err) {
         console.error('Error refreshing suggestions:', err);
         showToast('ไม่สามารถรีเฟรชคำถามได้ ลองใหม่อีกครั้ง', 'error', 3000);
     } finally {
         btn.classList.remove('spinning');
     }
+}
+
+function startCooldown(btn, seconds) {
+    btn.classList.add('cooldown');
+    btn.style.opacity = '0.4';
+    btn.title = `รอ ${seconds} วินาที`;
+
+    if (refreshCooldownTimer) clearInterval(refreshCooldownTimer);
+
+    let remaining = seconds;
+    refreshCooldownTimer = setInterval(() => {
+        remaining--;
+        if (remaining <= 0) {
+            clearInterval(refreshCooldownTimer);
+            refreshCooldownTimer = null;
+            btn.classList.remove('cooldown');
+            btn.style.opacity = '';
+            btn.title = 'รีเฟรชคำถามแนะนำ';
+        } else {
+            btn.title = `รอ ${remaining} วินาที`;
+        }
+    }, 1000);
 }
 
 // ─── Session Management ─────────────────────────

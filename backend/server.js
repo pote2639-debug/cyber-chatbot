@@ -224,9 +224,37 @@ app.get('/api/models', (req, res) => {
     ]);
 });
 
+// ─── Suggestions Rate Limiting & Caching ──────────────────
+const suggestionsRateLimit = new Map(); // IP -> last request timestamp
+const SUGGESTIONS_COOLDOWN_MS = 30 * 1000; // 30 seconds per IP
+let suggestionsCache = { data: null, timestamp: 0 };
+const SUGGESTIONS_CACHE_TTL_MS = 60 * 1000; // 60 seconds cache
+
 // Generate fresh suggested questions using OpenRouter AI
 app.get('/api/suggestions', async (req, res) => {
     try {
+        // Rate limit per IP
+        const clientIP = req.ip || req.connection.remoteAddress;
+        const lastRequest = suggestionsRateLimit.get(clientIP) || 0;
+        const elapsed = Date.now() - lastRequest;
+
+        if (elapsed < SUGGESTIONS_COOLDOWN_MS) {
+            const waitSec = Math.ceil((SUGGESTIONS_COOLDOWN_MS - elapsed) / 1000);
+            return res.status(429).json({
+                error: 'RATE_LIMITED',
+                message: `กรุณารอ ${waitSec} วินาทีก่อนรีเฟรชอีกครั้ง`,
+                retryAfter: waitSec,
+            });
+        }
+
+        // Serve from cache if still fresh
+        if (suggestionsCache.data && (Date.now() - suggestionsCache.timestamp) < SUGGESTIONS_CACHE_TTL_MS) {
+            suggestionsRateLimit.set(clientIP, Date.now());
+            console.log('🔄 Serving cached suggestions');
+            return res.json(suggestionsCache.data);
+        }
+
+        suggestionsRateLimit.set(clientIP, Date.now());
         const apiKey = process.env.OPENROUTER_API_KEY;
         if (!apiKey) throw new Error('OPENROUTER_API_KEY not set');
 
@@ -277,7 +305,8 @@ app.get('/api/suggestions', async (req, res) => {
         content = content.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
 
         const suggestions = JSON.parse(content);
-        console.log('🔄 Generated fresh suggestions');
+        suggestionsCache = { data: suggestions, timestamp: Date.now() };
+        console.log('🔄 Generated fresh suggestions (cached for 60s)');
         res.json(suggestions);
     } catch (err) {
         console.error('Error generating suggestions:', err);
