@@ -12,11 +12,39 @@ const {
 } = require('./db');
 
 const app = express();
-app.use(cors());
+// ─── CORS ─────────────────────────────────────────────────
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || 'http://localhost:3000').split(',');
+app.use(cors({
+    origin: (origin, callback) => {
+        // Allow same-origin requests (no Origin header) and listed origins
+        if (!origin || ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
+        callback(new Error('Not allowed by CORS'));
+    },
+    credentials: true,
+}));
+
 app.use(express.json());
+
+// ─── Security Headers ──────────────────────────────────────
+app.use((_req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('X-XSS-Protection', '1; mode=block');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    next();
+});
 
 // Serve frontend static files
 app.use(express.static(path.join(__dirname, '..', 'frontend')));
+
+// ─── Constants ────────────────────────────────────────────
+const MAX_HISTORY_MESSAGES = 30;
+const COMPLEX_WORD_COUNT = 30;
+const COMPLEX_KEYWORD_HITS = 2;
+const AI_CHAT_MAX_TOKENS = 1024;
+const AI_SUGGESTIONS_MAX_TOKENS = 512;
+const AI_CHAT_TEMPERATURE = 0.7;
+const AI_SUGGESTIONS_TEMPERATURE = 1.0;
 
 // ─── Automatic Model Routing ──────────────────────────────
 // Routes questions to the right model based on complexity
@@ -46,17 +74,42 @@ function selectModel(message) {
     const wordCount = message.split(/\s+/).length;
 
     // Check for complex keyword matches
-    var keywordHits = 0;
-    for (var i = 0; i < COMPLEX_KEYWORDS.length; i++) {
+    let keywordHits = 0;
+    for (let i = 0; i < COMPLEX_KEYWORDS.length; i++) {
         if (msg.includes(COMPLEX_KEYWORDS[i])) keywordHits++;
     }
 
     // Use smart model if: long message, multiple keywords, or asking for detailed explanation
-    if (wordCount > 30 || keywordHits >= 2) {
+    if (wordCount > COMPLEX_WORD_COUNT || keywordHits >= COMPLEX_KEYWORD_HITS) {
         return MODEL_TIERS.smart;
     }
 
     return MODEL_TIERS.fast;
+}
+
+// ─── Rate Limiting ────────────────────────────────────────
+
+const loginRateLimit = new Map();  // IP -> { count, firstAttempt }
+const LOGIN_MAX_ATTEMPTS = 5;
+const LOGIN_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
+
+const chatRateLimit = new Map();   // IP -> { count, windowStart }
+const CHAT_MAX_PER_MIN = 30;
+const CHAT_WINDOW_MS = 60 * 1000; // 1 minute
+
+function checkRateLimit(map, ip, maxAttempts, windowMs) {
+    const now = Date.now();
+    const entry = map.get(ip);
+    if (!entry || (now - entry.windowStart) > windowMs) {
+        map.set(ip, { count: 1, windowStart: now });
+        return null; // allowed
+    }
+    entry.count++;
+    if (entry.count > maxAttempts) {
+        const waitSec = Math.ceil((windowMs - (now - entry.windowStart)) / 1000);
+        return waitSec; // blocked, return seconds to wait
+    }
+    return null; // allowed
 }
 
 // ─── API Routes ───────────────────────────────────────────
@@ -67,6 +120,9 @@ app.post('/api/session', async (req, res) => {
         const { userName } = req.body;
         if (!userName || !userName.trim()) {
             return res.status(400).json({ error: 'userName is required' });
+        }
+        if (userName.trim().length > 50) {
+            return res.status(400).json({ error: 'userName must be 50 characters or less' });
         }
         const session = await createSession(userName.trim());
         console.log(`📋 New session: ${session.id} for "${userName.trim()}"`);
@@ -82,6 +138,10 @@ app.post('/api/session', async (req, res) => {
 
 // Get all active sessions for a user
 app.get('/api/sessions/user/:userName', async (req, res) => {
+    const clientIP = req.ip || req.connection.remoteAddress;
+    if (checkRateLimit(chatRateLimit, clientIP, CHAT_MAX_PER_MIN, CHAT_WINDOW_MS)) {
+        return res.status(429).json({ error: 'Too many requests' });
+    }
     try {
         const { userName } = req.params;
         const sessions = await getSessionsByUserName(userName);
@@ -92,10 +152,28 @@ app.get('/api/sessions/user/:userName', async (req, res) => {
     }
 });
 
-// Delete a user session
+// Delete a session — admin (bearer token) or owner (must pass userName in body)
 app.delete('/api/sessions/:sessionId', async (req, res) => {
     try {
         const { sessionId } = req.params;
+
+        // Check for admin token
+        const auth = req.headers.authorization;
+        const token = auth?.startsWith('Bearer ') ? auth.slice(7) : null;
+        const isAdmin = token && adminTokens.has(token);
+
+        if (!isAdmin) {
+            // Regular user must prove ownership
+            const { userName } = req.body;
+            if (!userName) {
+                return res.status(401).json({ error: 'Unauthorized' });
+            }
+            const userSessions = await getSessionsByUserName(userName);
+            if (!userSessions.some(s => s.id === sessionId)) {
+                return res.status(403).json({ error: 'Forbidden' });
+            }
+        }
+
         const success = await deleteSession(sessionId);
         if (success) {
             console.log(`🗑️ Deleted session: ${sessionId}`);
@@ -115,6 +193,16 @@ app.post('/api/chat', async (req, res) => {
         const { sessionId, message } = req.body;
         if (!sessionId || !message) {
             return res.status(400).json({ error: 'sessionId and message are required' });
+        }
+        if (message.length > 2000) {
+            return res.status(400).json({ error: 'Message must be 2000 characters or less' });
+        }
+
+        // Rate limit chat messages
+        const chatIP = req.ip || req.connection.remoteAddress;
+        const chatWait = checkRateLimit(chatRateLimit, chatIP, CHAT_MAX_PER_MIN, CHAT_WINDOW_MS);
+        if (chatWait) {
+            return res.status(429).json({ error: 'RATE_LIMITED', message: `Too many messages. Please wait ${chatWait} seconds.` });
         }
 
         // Auto-select model based on question complexity
@@ -148,6 +236,10 @@ app.post('/api/chat', async (req, res) => {
 
 // Get conversation history
 app.get('/api/history/:sessionId', async (req, res) => {
+    const clientIP = req.ip || req.connection.remoteAddress;
+    if (checkRateLimit(chatRateLimit, clientIP, CHAT_MAX_PER_MIN, CHAT_WINDOW_MS)) {
+        return res.status(429).json({ error: 'Too many requests' });
+    }
     try {
         const history = await getHistory(req.params.sessionId);
         res.json(history);
@@ -160,12 +252,24 @@ app.get('/api/history/:sessionId', async (req, res) => {
 // ─── Admin Authentication ─────────────────────────────────
 
 const ADMIN_USER = process.env.ADMIN_USER || 'admin';
-const ADMIN_PASS = process.env.ADMIN_PASS || 'cyber_admin_2026';
+const ADMIN_PASS = process.env.ADMIN_PASS;
 const adminTokens = new Set(); // In-memory token store
 
 // Login endpoint — returns a token
 app.post('/api/admin/login', (req, res) => {
+    // Rate limit login attempts
+    const loginIP = req.ip || req.connection.remoteAddress;
+    const loginWait = checkRateLimit(loginRateLimit, loginIP, LOGIN_MAX_ATTEMPTS, LOGIN_WINDOW_MS);
+    if (loginWait) {
+        console.warn(`⚠️  Login rate limited for IP: ${loginIP}`);
+        return res.status(429).json({ error: 'Too many login attempts. Please try again later.', retryAfter: loginWait });
+    }
+
     const { username, password } = req.body;
+    if (!ADMIN_PASS) {
+        console.error('❌ ADMIN_PASS environment variable is not set');
+        return res.status(500).json({ error: 'Server configuration error' });
+    }
     if (username === ADMIN_USER && password === ADMIN_PASS) {
         const token = crypto.randomUUID();
         adminTokens.add(token);
@@ -200,21 +304,6 @@ app.get('/api/sessions', requireAdmin, async (req, res) => {
     }
 });
 
-// Delete a session (admin — protected)
-app.delete('/api/sessions/:id', requireAdmin, async (req, res) => {
-    try {
-        const deleted = await deleteSession(req.params.id);
-        if (deleted) {
-            console.log(`🗑️  Admin deleted session ${req.params.id}`);
-            res.json({ success: true });
-        } else {
-            res.status(404).json({ error: 'Session not found' });
-        }
-    } catch (err) {
-        console.error('Error deleting session:', err);
-        res.status(500).json({ error: 'Failed to delete session' });
-    }
-});
 
 // Get available AI models (info endpoint)
 app.get('/api/models', (req, res) => {
@@ -279,7 +368,7 @@ app.get('/api/suggestions', async (req, res) => {
             headers: {
                 'Authorization': `Bearer ${apiKey}`,
                 'Content-Type': 'application/json',
-                'HTTP-Referer': 'http://localhost:3000',
+                'HTTP-Referer': process.env.APP_URL || 'http://localhost:3000',
                 'X-Title': 'CyberChat Chatbot',
             },
             body: JSON.stringify({
@@ -288,8 +377,8 @@ app.get('/api/suggestions', async (req, res) => {
                     { role: 'system', content: 'คุณเป็นผู้ช่วยสร้างคำถามแนะนำ ตอบเป็น JSON array เท่านั้น ห้ามมี markdown หรือ code block' },
                     { role: 'user', content: prompt },
                 ],
-                max_tokens: 512,
-                temperature: 1.0,
+                max_tokens: AI_SUGGESTIONS_MAX_TOKENS,
+                temperature: AI_SUGGESTIONS_TEMPERATURE,
             }),
         });
 
@@ -428,8 +517,8 @@ async function callOpenRouterDirect(message, history, selectedModel) {
     // Build messages array with history
     const messages = [{ role: 'system', content: SYSTEM_PROMPT }];
 
-    // Add recent conversation history (last 30 messages for context, mitigates hallucination)
-    const recentHistory = history.slice(-30);
+    // Add recent conversation history (last N messages for context, mitigates hallucination)
+    const recentHistory = history.slice(-MAX_HISTORY_MESSAGES);
     for (const msg of recentHistory) {
         messages.push({ role: msg.role, content: msg.content });
     }
@@ -445,14 +534,14 @@ async function callOpenRouterDirect(message, history, selectedModel) {
         headers: {
             'Authorization': `Bearer ${apiKey}`,
             'Content-Type': 'application/json',
-            'HTTP-Referer': 'http://localhost:3000',
+            'HTTP-Referer': process.env.APP_URL || 'http://localhost:3000',
             'X-Title': 'CyberChat Chatbot',
         },
         body: JSON.stringify({
             model,
             messages,
-            max_tokens: 1024,
-            temperature: 0.7,
+            max_tokens: AI_CHAT_MAX_TOKENS,
+            temperature: AI_CHAT_TEMPERATURE,
         }),
     });
 
@@ -465,11 +554,23 @@ async function callOpenRouterDirect(message, history, selectedModel) {
     return data.choices?.[0]?.message?.content || 'I apologize, but I could not generate a response. Please try again.';
 }
 
+// ─── Health Check ─────────────────────────────────────────
+
+app.get('/health', (_req, res) => {
+    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
 // ─── Start Server ─────────────────────────────────────────
 
 const PORT = process.env.PORT || 3000;
 
 async function start() {
+    // Fail fast if required environment variables are missing
+    if (!process.env.OPENROUTER_API_KEY) {
+        console.error('❌ Missing required environment variable: OPENROUTER_API_KEY');
+        process.exit(1);
+    }
+
     try {
         await initDB();
         app.listen(PORT, '0.0.0.0', () => {

@@ -34,12 +34,18 @@ const TOAST_ICONS = {
     info: '💡',
 };
 
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
 function showToast(message, type = 'info', duration = 4000) {
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
     toast.innerHTML = `
         <span class="toast-icon">${TOAST_ICONS[type] || TOAST_ICONS.info}</span>
-        <span>${message}</span>
+        <span>${escapeHtml(message)}</span>
     `;
     toastContainer.appendChild(toast);
 
@@ -54,7 +60,7 @@ function showToast(message, type = 'info', duration = 4000) {
 if (sidebarToggleBtn) {
     sidebarToggleBtn.addEventListener('click', function (e) {
         e.preventDefault();
-        var isMobile = window.innerWidth <= 1024;
+        const isMobile = window.innerWidth <= 1024;
 
         if (isMobile) {
             const isOpen = sidebar.classList.contains('mobile-open');
@@ -151,16 +157,16 @@ async function tryRestoreSession() {
     }
 
     // Case 2: No active session but we remember the username — auto-start new session
-    var savedName = localStorage.getItem('cyberguard_username');
+    const savedName = localStorage.getItem('cyberguard_username');
     if (savedName) {
         try {
-            var res = await fetch(API_BASE + '/api/session', {
+            const res = await fetch(API_BASE + '/api/session', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ userName: savedName }),
             });
             if (res.ok) {
-                var data = await res.json();
+                const data = await res.json();
                 sessionId = data.id;
                 userName = savedName;
                 saveSession();
@@ -321,13 +327,14 @@ function addMessage(role, content, animate = true) {
 }
 
 function formatMarkdown(text) {
-    let html = text
+    // Escape HTML entities first to prevent XSS, then apply markdown
+    let html = escapeHtml(text)
         .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
         .replace(/\*(.*?)\*/g, '<em>$1</em>')
         .replace(/`(.*?)`/g, '<code>$1</code>')
         .replace(/^\d+\.\s+(.+)$/gm, '<li>$1</li>')
         .replace(/^[•\-]\s+(.+)$/gm, '<li>$1</li>')
-        .replace(/((?:<li>.*<\/li>\n?)+)/g, '<ul>$1</ul>')
+        .replace(/((?:&lt;li&gt;.*&lt;\/li&gt;\n?)+)/g, '<ul>$1</ul>')
         .replace(/\n\n+/g, '</p><p>')
         .replace(/\n/g, '<br>');
 
@@ -529,7 +536,11 @@ async function deleteUserSession(idToDelete) {
     if (!confirm('คุณแน่ใจหรือไม่ว่าต้องการลบแชทนี้?')) return;
 
     try {
-        const res = await fetch(`${API_BASE}/api/sessions/${idToDelete}`, { method: 'DELETE' });
+        const res = await fetch(`${API_BASE}/api/sessions/${idToDelete}`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userName }),
+        });
         if (!res.ok) throw new Error('Failed to delete');
 
         if (idToDelete === sessionId) {

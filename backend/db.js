@@ -8,7 +8,7 @@ const pool = new Pool(
       host: process.env.DB_HOST || 'localhost',
       port: parseInt(process.env.DB_PORT || '5432'),
       user: process.env.DB_USER || 'cyber',
-      password: process.env.DB_PASSWORD || 'cyber_pass_2026',
+      password: process.env.DB_PASSWORD || '',
       database: process.env.DB_NAME || 'cyber_chatbot',
     }
 );
@@ -48,10 +48,12 @@ async function getActiveSessionCount(userName) {
   return parseInt(result.rows[0].count);
 }
 
+const MAX_SESSIONS_PER_USER = 3;
+
 // Create a new session
 async function createSession(userName) {
   const count = await getActiveSessionCount(userName);
-  if (count >= 3) {
+  if (count >= MAX_SESSIONS_PER_USER) {
     throw new Error('MAX_SESSIONS_REACHED');
   }
 

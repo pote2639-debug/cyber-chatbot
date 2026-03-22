@@ -3,3 +3,7 @@ node_modules
 .vscode
 *.log
 .DS_Store
+
+# Claude Code agent config (local tooling, not part of the project)
+.agents/
+.claude/
